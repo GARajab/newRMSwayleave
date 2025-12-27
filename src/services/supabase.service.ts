@@ -74,6 +74,14 @@ export class SupabaseService {
     return data.users;
   }
 
+  async deleteUser(userId: string): Promise<void> {
+    const { error } = await this.supabase.auth.admin.deleteUser(userId);
+    if (error) {
+      console.error(`Error deleting user ${userId}:`, error.message, error);
+      throw error;
+    }
+  }
+
   // --- User Profile Methods ---
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     const { data, error } = await this.supabase

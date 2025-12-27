@@ -11,7 +11,7 @@ import { UserRole, WayleaveRecord } from './models/wayleave.model';
 import { SpinnerComponent } from './components/spinner/spinner.component';
 import { AuthService } from './services/auth.service';
 import { LoginComponent } from './components/login/login.component';
-import { UserManagementComponent } from './components/user-management/user-management.component';
+import { AdminPortalComponent } from './components/admin-portal/admin-portal.component';
 
 @Component({
   selector: 'app-root',
@@ -23,7 +23,7 @@ import { UserManagementComponent } from './components/user-management/user-manag
     ModalComponent,
     SpinnerComponent,
     LoginComponent,
-    UserManagementComponent
+    AdminPortalComponent
   ],
   template: `
 @if(isCheckingSession()) {
@@ -92,71 +92,44 @@ import { UserManagementComponent } from './components/user-management/user-manag
       (logout)="handleLogout()">
     </app-header>
     
-    <main class="p-4 sm:p-6 lg:p-8 animate-fade-in">
-      <div class="max-w-7xl mx-auto">
-        <div class="flex justify-between items-center mb-6">
-          <div class="flex items-center gap-4">
-            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                {{ currentView() === 'dashboard' ? 'Wayleave Dashboard' : 'User Management' }}
-            </h1>
-            <button (click)="refreshData()" [disabled]="isRefreshing()" title="Refresh Data" class="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:cursor-wait disabled:opacity-50 transition-colors">
-              @if (isRefreshing()) {
-                <svg class="animate-spin h-5 w-5 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5m0 0l-5-5m5 5l-5 5M4 4l5 5" />
-                </svg>
-              }
-            </button>
-          </div>
-          <div class="flex items-center gap-4">
-            @if (currentUser() === 'Admin') {
-                <div class="flex items-center gap-2 p-1 bg-slate-200 dark:bg-slate-700 rounded-lg">
-                    <button 
-                        (click)="setView('dashboard')" 
-                        class="px-3 py-1 text-sm font-medium rounded-md transition-colors"
-                        [class.bg-white]="currentView() === 'dashboard'"
-                        [class.dark:bg-slate-800]="currentView() === 'dashboard'"
-                        [class.text-sky-600]="currentView() === 'dashboard'"
-                        [class.dark:text-sky-400]="currentView() === 'dashboard'"
-                        [class.text-slate-600]="currentView() !== 'dashboard'"
-                        [class.dark:text-slate-300]="currentView() !== 'dashboard'">
-                        Dashboard
-                    </button>
-                    <button 
-                        (click)="setView('users')"
-                        class="px-3 py-1 text-sm font-medium rounded-md transition-colors"
-                        [class.bg-white]="currentView() === 'users'"
-                        [class.dark:bg-slate-800]="currentView() === 'users'"
-                        [class.text-sky-600]="currentView() === 'users'"
-                        [class.dark:text-sky-400]="currentView() === 'users'"
-                        [class.text-slate-600]="currentView() !== 'users'"
-                        [class.dark:text-slate-300]="currentView() !== 'users'">
-                        Users
-                    </button>
-                </div>
-            }
-            @if (currentView() === 'dashboard' && (currentUser() === 'PLANNING' || currentUser() === 'Admin')) {
-              <button (click)="openNewWayleaveModal()" class="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-md shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-150 hover:scale-105 active:scale-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                </svg>
-                <span>New Wayleave</span>
+    @if (currentUser() === 'Admin') {
+      <app-admin-portal (openNewWayleaveModal)="openNewWayleaveModal()"></app-admin-portal>
+    } @else {
+      <main class="p-4 sm:p-6 lg:p-8 animate-fade-in">
+        <div class="max-w-7xl mx-auto">
+          <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-4">
+              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Wayleave Dashboard
+              </h1>
+              <button (click)="refreshData()" [disabled]="isRefreshing()" title="Refresh Data" class="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:cursor-wait disabled:opacity-50 transition-colors">
+                @if (isRefreshing()) {
+                  <svg class="animate-spin h-5 w-5 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5m0 0l-5-5m5 5l-5 5M4 4l5 5" />
+                  </svg>
+                }
               </button>
-            }
+            </div>
+            <div class="flex items-center gap-4">
+              @if (currentUser() === 'PLANNING') {
+                <button (click)="openNewWayleaveModal()" class="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-md shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-150 hover:scale-105 active:scale-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                  </svg>
+                  <span>New Wayleave</span>
+                </button>
+              }
+            </div>
           </div>
+          <app-wayleave-list></app-wayleave-list>
         </div>
-
-        @if (currentView() === 'dashboard') {
-            <app-wayleave-list></app-wayleave-list>
-        } @else {
-            <app-user-management></app-user-management>
-        }
-      </div>
-    </main>
+      </main>
+    }
 
     @if (isNewWayleaveModalOpen()) {
       <app-modal title="Initiate New Wayleave" (close)="closeNewWayleaveModal()">
@@ -188,8 +161,6 @@ export class AppComponent implements OnInit {
   session = this.authService.session;
   currentUser = this.wayleaveService.currentUser;
   
-  currentView = signal<'dashboard' | 'users'>('dashboard');
-
   notifications = computed(() => {
     const user = this.currentUser();
     if (!user) return [];
@@ -271,11 +242,7 @@ export class AppComponent implements OnInit {
   async refreshData() {
     this.isRefreshing.set(true);
     try {
-      if (this.currentView() === 'dashboard') {
-        await this.wayleaveService.initializeData();
-      } else {
-        await this.initializeAppData(); 
-      }
+      await this.wayleaveService.initializeData();
     } catch (error: any) {
       alert(`Failed to refresh data: ${error.message}`);
     } finally {
@@ -286,16 +253,11 @@ export class AppComponent implements OnInit {
   async handleLogout() {
     try {
       await this.authService.signOut();
-      this.currentView.set('dashboard');
     } catch (error: any) {
       alert(`Error signing out: ${error.message}`);
     }
   }
   
-  setView(view: 'dashboard' | 'users') {
-    this.currentView.set(view);
-  }
-
   async copySetupSql(): Promise<void> {
     const script = this.setupSqlScript();
     if (!script) return;

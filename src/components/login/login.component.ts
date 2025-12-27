@@ -1,5 +1,5 @@
 
-import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -20,7 +20,11 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 
     <div class="bg-white dark:bg-slate-800/50 shadow-lg rounded-xl p-8 ring-1 ring-slate-900/5">
       <h2 class="text-2xl font-semibold text-center text-slate-700 dark:text-slate-200 mb-6">
-        {{ viewMode() === 'login' ? 'Sign In' : 'Create Account' }}
+        @if(isAdminLogin()) {
+          <span class="text-indigo-600 dark:text-indigo-400">Admin Portal</span>
+        } @else {
+          <span>{{ viewMode() === 'login' ? 'Sign In' : 'Create Account' }}</span>
+        }
       </h2>
       
       @if(successMessage()) {
@@ -51,8 +55,17 @@ import { SpinnerComponent } from '../spinner/spinner.component';
           }
 
           <div>
-            <button type="submit" [disabled]="isLoading() || !email() || !password()" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              @if(isLoading()) { <app-spinner></app-spinner> } @else { <span>Sign In</span> }
+            <button type="submit" [disabled]="isLoading() || !email() || !password()" 
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+              [class.bg-sky-600]="!isAdminLogin()"
+              [class.hover:bg-sky-700]="!isAdminLogin()"
+              [class.focus:ring-sky-500]="!isAdminLogin()"
+              [class.bg-indigo-600]="isAdminLogin()"
+              [class.hover:bg-indigo-700]="isAdminLogin()"
+              [class.focus:ring-indigo-500]="isAdminLogin()">
+              @if(isLoading()) { <app-spinner></app-spinner> } @else { 
+                <span>{{ isAdminLogin() ? 'Sign In as Admin' : 'Sign In' }}</span> 
+              }
             </button>
           </div>
         </form>
@@ -122,6 +135,8 @@ export class LoginComponent {
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+
+  isAdminLogin = computed(() => this.email().toLowerCase() === 'mohamed.rajab@ewa.bh');
   
   async handleLogin(): Promise<void> {
     if (this.isLoading()) return;

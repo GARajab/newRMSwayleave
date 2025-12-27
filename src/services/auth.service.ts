@@ -27,27 +27,49 @@ export class AuthService {
     });
 
     this.supabaseService.onAuthStateChange(async (event, session) => {
-      // After a user signs in, check their profile status.
-      // If they are pending, log them out immediately.
-      // This prevents users from using the app before an admin activates them.
-      if (event === 'SIGNED_IN' && session) {
-        const profile = await this.supabaseService.getUserProfile(session.user.id);
-        if (profile?.status === 'pending') {
-          this.supabaseService.signOut(); // This will trigger another auth change event to null the session.
-          return;
-        }
+      // The signIn() method calls setSession with an authoritative profile.
+      // We MUST ignore the SIGNED_IN event here to prevent a race condition
+      // where this listener calls setSession without a profile, potentially
+      // fetching stale data from the database and overwriting the correct role.
+      if (event === 'SIGNED_IN') {
+        return;
       }
+      // For all other events (INITIAL_SESSION, SIGNED_OUT, TOKEN_REFRESHED),
+      // the setSession method can safely manage the application's state.
       await this.setSession(session);
     });
   }
 
-  async setSession(session: Session | null) {
-      this.session.set(session);
-      if (session?.user) {
-        // Fetch role from the public.users table instead of app_metadata
-        const profile = await this.supabaseService.getUserProfile(session.user.id);
-        this.currentUserRole.set(profile?.role || 'Unassigned');
+  async setSession(session: Session | null, profile?: UserProfile | null) {
+      if (session) {
+        // Path 1: An explicit profile is provided (from our signIn method).
+        // This is the source of truth during login.
+        if (profile) {
+            this.session.set(session);
+            this.currentUserRole.set(profile.role);
+            return;
+        }
+
+        // Path 2: A background event for an already-logged-in user (e.g., TOKEN_REFRESHED).
+        // We only update the session object (which contains the new token) and preserve the existing role.
+        if (this.session()?.user?.id === session.user.id) {
+            this.session.set(session);
+            return;
+        }
+
+        // Path 3: A new session for a user we haven't seen yet (e.g., INITIAL_SESSION on app load).
+        // We must fetch their profile and validate their status.
+        const userProfile = await this.supabaseService.getUserProfile(session.user.id);
+        if (userProfile?.status === 'active') {
+            this.session.set(session);
+            this.currentUserRole.set(userProfile.role);
+        } else {
+            // User is pending, not found, or otherwise invalid. Ensure they are signed out.
+            await this.supabaseService.signOut();
+        }
       } else {
+        // Path 4: The session is null (user has signed out). Clear all state.
+        this.session.set(null);
         this.currentUserRole.set(null);
       }
   }
@@ -89,10 +111,9 @@ export class AuthService {
         throw new Error('Your account has not been assigned a role. Please contact an administrator.');
     }
 
-    // Explicitly call setSession here to ensure the role is updated immediately after
-    // the sign-in logic, especially after the admin bootstrap. This avoids a race condition
-    // with the onAuthStateChange listener.
-    await this.setSession(session);
+    // Explicitly call setSession here and pass the profile we just retrieved/created.
+    // This provides the authoritative state for the user's session and role.
+    await this.setSession(session, profile);
 
     return session;
   }
@@ -129,5 +150,9 @@ export class AuthService {
   async updateUserRole(user: AugmentedUser, role: UserRole): Promise<AugmentedUser> {
     const updatedProfile = await this.supabaseService.updateUserProfile(user.id, { role: role });
     return { ...user, role: updatedProfile.role, status: updatedProfile.status };
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    return this.supabaseService.deleteUser(userId);
   }
 }
