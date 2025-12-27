@@ -15,7 +15,151 @@ import { UserManagementComponent } from './components/user-management/user-manag
 
 @Component({
   selector: 'app-root',
-  templateUrl: './app.component.html',
+  template: `
+@if(isCheckingSession()) {
+  <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+    <app-spinner></app-spinner>
+  </div>
+} @else if (!session()) {
+  <app-login></app-login>
+} @else if (isAppLoading()) {
+  <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+    <app-spinner></app-spinner>
+  </div>
+} @else if (appError()) {
+  @if (setupSqlScript()) {
+    <div class="fixed inset-0 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 p-4 sm:p-8">
+      <div class="w-full max-w-4xl bg-white dark:bg-slate-800 rounded-lg shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
+        <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-900/20">
+          <h3 class="font-bold text-xl text-red-800 dark:text-red-200 flex items-center gap-3">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Action Required: Database Setup</span>
+          </h3>
+          <p class="mt-2 text-base text-red-700 dark:text-red-300">{{ appError() }}</p>
+        </div>
+        <div class="p-6 space-y-6 bg-slate-50 dark:bg-slate-800/50">
+          <p class="text-slate-600 dark:text-slate-300">To get the application running, please run the following SQL script in your Supabase project's SQL Editor.</p>
+          
+          <div class="relative">
+            <button (click)="copySetupSql()" class="absolute top-2 right-2 px-3 py-1 bg-slate-200 dark:bg-slate-700 text-sm font-medium rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors">
+              @if(copySuccess()) {
+                <span class="text-green-600 dark:text-green-400">Copied!</span>
+              } @else {
+                <span>Copy Script</span>
+              }
+            </button>
+            <pre class="bg-slate-100 dark:bg-slate-900/70 p-4 rounded-md overflow-x-auto text-sm text-slate-800 dark:text-slate-200 max-h-60 sm:max-h-80 border border-slate-200 dark:border-slate-700"><code>{{ setupSqlScript() }}</code></pre>
+          </div>
+
+          <div>
+             <h4 class="font-semibold text-lg text-slate-800 dark:text-slate-100 mb-3">Instructions</h4>
+             <ol class="list-decimal list-inside space-y-2 text-slate-600 dark:text-slate-300">
+                <li>Click the <strong>"Copy Script"</strong> button above.</li>
+                <li>Go to your project dashboard on <a href="https://supabase.com/" target="_blank" rel="noopener" class="text-sky-500 hover:underline font-medium">supabase.com</a>.</li>
+                <li>In the left menu, navigate to the <strong class="font-semibold text-slate-700 dark:text-slate-200">SQL Editor</strong> (database icon).</li>
+                <li>Click <strong class="font-semibold text-slate-700 dark:text-slate-200">"+ New query"</strong>, paste the script, and click <strong class="font-semibold text-green-600 dark:text-green-400">"RUN"</strong>.</li>
+                <li>Once the script is successful, <strong class="font-semibold text-slate-700 dark:text-slate-200">refresh this page</strong>.</li>
+             </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-8">
+      <div class="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-6 rounded-lg shadow-lg max-w-2xl ring-1 ring-red-500/20">
+        <h3 class="font-bold text-lg mb-2 text-red-800 dark:text-red-200">Application Error</h3>
+        <p class="text-base">{{ appError() }}</p>
+      </div>
+    </div>
+  }
+} @else {
+  <div class="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+    <app-header 
+      [notifications]="notifications()"
+      [notificationCount]="notificationCount()"
+      (logout)="handleLogout()">
+    </app-header>
+    
+    <main class="p-4 sm:p-6 lg:p-8 animate-fade-in">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+          <div class="flex items-center gap-4">
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {{ currentView() === 'dashboard' ? 'Wayleave Dashboard' : 'User Management' }}
+            </h1>
+            <button (click)="refreshData()" [disabled]="isRefreshing()" title="Refresh Data" class="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:cursor-wait disabled:opacity-50 transition-colors">
+              @if (isRefreshing()) {
+                <svg class="animate-spin h-5 w-5 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5m0 0l-5-5m5 5l-5 5M4 4l5 5" />
+                </svg>
+              }
+            </button>
+          </div>
+          <div class="flex items-center gap-4">
+            @if (currentUser() === 'Admin') {
+                <div class="flex items-center gap-2 p-1 bg-slate-200 dark:bg-slate-700 rounded-lg">
+                    <button 
+                        (click)="setView('dashboard')" 
+                        class="px-3 py-1 text-sm font-medium rounded-md transition-colors"
+                        [class.bg-white]="currentView() === 'dashboard'"
+                        [class.dark:bg-slate-800]="currentView() === 'dashboard'"
+                        [class.text-sky-600]="currentView() === 'dashboard'"
+                        [class.dark:text-sky-400]="currentView() === 'dashboard'"
+                        [class.text-slate-600]="currentView() !== 'dashboard'"
+                        [class.dark:text-slate-300]="currentView() !== 'dashboard'">
+                        Dashboard
+                    </button>
+                    <button 
+                        (click)="setView('users')"
+                        class="px-3 py-1 text-sm font-medium rounded-md transition-colors"
+                        [class.bg-white]="currentView() === 'users'"
+                        [class.dark:bg-slate-800]="currentView() === 'users'"
+                        [class.text-sky-600]="currentView() === 'users'"
+                        [class.dark:text-sky-400]="currentView() === 'users'"
+                        [class.text-slate-600]="currentView() !== 'users'"
+                        [class.dark:text-slate-300]="currentView() !== 'users'">
+                        Users
+                    </button>
+                </div>
+            }
+            @if (currentView() === 'dashboard' && (currentUser() === 'PLANNING' || currentUser() === 'Admin')) {
+              <button (click)="openNewWayleaveModal()" class="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-md shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-150 hover:scale-105 active:scale-100">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                <span>New Wayleave</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (currentView() === 'dashboard') {
+            <app-wayleave-list></app-wayleave-list>
+        } @else {
+            <app-user-management></app-user-management>
+        }
+      </div>
+    </main>
+
+    @if (isNewWayleaveModalOpen()) {
+      <app-modal title="Initiate New Wayleave" (close)="closeNewWayleaveModal()">
+        <app-new-wayleave-form 
+          [isLoading]="isCreatingWayleave()"
+          (formSubmitted)="handleWayleaveCreated($event)" 
+          (formCancelled)="closeNewWayleaveModal()">
+        </app-new-wayleave-form>
+      </app-modal>
+    }
+  </div>
+}
+`,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, HeaderComponent, WayleaveListComponent, NewWayleaveFormComponent, ModalComponent, SpinnerComponent, LoginComponent, UserManagementComponent],
 })
