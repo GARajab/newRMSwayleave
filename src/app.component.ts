@@ -161,7 +161,6 @@ import { UserManagementComponent } from './components/user-management/user-manag
 }
 `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, HeaderComponent, WayleaveListComponent, NewWayleaveFormComponent, ModalComponent, SpinnerComponent, LoginComponent, UserManagementComponent],
 })
 export class AppComponent implements OnInit {
   wayleaveService = inject(WayleaveService);
