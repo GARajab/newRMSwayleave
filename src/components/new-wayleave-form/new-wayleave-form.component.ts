@@ -14,7 +14,8 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 })
 export class NewWayleaveFormComponent {
   isLoading = input<boolean>(false);
-  formSubmitted = output<Omit<WayleaveRecord, 'id' | 'status' | 'history'> & { attachment: File }>();
+  // FIX: Fixed the type definition for the 'formSubmitted' output. The original type created an impossible intersection for the 'attachment' property. The fix is to first omit the original 'attachment' property from WayleaveRecord before adding the desired 'attachment: File' type, which resolves the type error when emitting the form data.
+  formSubmitted = output<Omit<WayleaveRecord, 'id' | 'status' | 'history' | 'attachment'> & { attachment: File }>();
   formCancelled = output<void>();
 
   wayleaveNumber = signal('');

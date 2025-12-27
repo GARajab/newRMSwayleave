@@ -1,7 +1,7 @@
 
-export type UserRole = 'PLANNING' | 'TSS' | 'EDD';
+export type UserRole = 'PLANNING' | 'TSS' | 'EDD' | 'Admin' | 'Unassigned';
 
-export const ALL_USER_ROLES: UserRole[] = ['PLANNING', 'TSS', 'EDD'];
+export const ALL_USER_ROLES: UserRole[] = ['PLANNING', 'TSS', 'EDD', 'Admin', 'Unassigned'];
 
 export type WayleaveStatus = 'Waiting for TSS Action' | 'Sent to MOW' | 'Sent to Planning (EDD)' | 'Completed';
 
@@ -14,7 +14,7 @@ export interface HistoryEntry {
 export interface AttachmentInfo {
   name: string;
   size: number;
-  file?: File;
+  path: string;
 }
 
 export interface WayleaveRecord {
@@ -24,4 +24,11 @@ export interface WayleaveRecord {
   attachment: AttachmentInfo;
   approvedAttachment?: AttachmentInfo;
   history: HistoryEntry[];
+}
+
+export interface UserProfile {
+  id: string; // user uuid
+  email: string;
+  role: UserRole;
+  status: 'active' | 'pending';
 }

@@ -1,9 +1,10 @@
 
-import { Component, ChangeDetectionStrategy, input, output, signal, ElementRef, HostListener, viewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, ElementRef, HostListener, viewChild, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { UserRole, ALL_USER_ROLES, WayleaveRecord } from '../../models/wayleave.model';
+import { WayleaveRecord } from '../../models/wayleave.model';
 import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
 import { NotificationListComponent } from '../notification-list/notification-list.component';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-header',
@@ -12,14 +13,16 @@ import { NotificationListComponent } from '../notification-list/notification-lis
   imports: [CommonModule, NotificationBellComponent, NotificationListComponent]
 })
 export class HeaderComponent {
-  currentUser = input.required<UserRole>();
   notifications = input.required<WayleaveRecord[]>();
   notificationCount = input.required<number>();
-  roleChanged = output<UserRole>();
+  logout = output<void>();
 
-  allRoles = ALL_USER_ROLES;
+  private authService = inject(AuthService);
+  
+  userEmail = computed(() => this.authService.session()?.user?.email);
+  userRole = computed(() => this.authService.currentUserRole());
+
   isNotificationPanelOpen = signal(false);
-
   notificationContainer = viewChild<ElementRef>('notificationContainer');
 
   @HostListener('document:click', ['$event'])
@@ -29,16 +32,15 @@ export class HeaderComponent {
     }
   }
 
-  onRoleChange(event: Event) {
-    const selectElement = event.target as HTMLSelectElement;
-    this.roleChanged.emit(selectElement.value as UserRole);
-  }
-
   toggleNotificationPanel() {
     this.isNotificationPanelOpen.update(value => !value);
   }
 
   closeNotificationPanel() {
     this.isNotificationPanelOpen.set(false);
+  }
+
+  onLogout() {
+    this.logout.emit();
   }
 }

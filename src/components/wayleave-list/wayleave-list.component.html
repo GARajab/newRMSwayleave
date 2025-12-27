@@ -36,10 +36,17 @@
                       <span class="text-xs text-gray-400">Initial Document</span>
                     </div>
                   </div>
-                  <button (click)="downloadFile(record.attachment.file)" [disabled]="!record.attachment.file" title="Download Initial Document" class="ml-2 p-1 text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-300 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex-shrink-0 transition-transform hover:scale-110">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
+                  <button (click)="downloadFile(record.attachment)" [disabled]="isDownloading(record.attachment.path)" title="Download Initial Document" class="ml-2 p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 disabled:text-slate-500 dark:disabled:text-slate-600 disabled:cursor-wait flex-shrink-0 transition-transform hover:scale-110">
+                    @if(isDownloading(record.attachment.path)) {
+                      <svg class="animate-spin h-5 w-5 text-sky-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    } @else {
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                    }
                   </button>
                 </div>
                 @if (record.approvedAttachment) {
@@ -53,10 +60,17 @@
                         <span class="text-xs text-gray-400">Approved Document (TSS)</span>
                       </div>
                     </div>
-                     <button (click)="downloadFile(record.approvedAttachment.file)" [disabled]="!record.approvedAttachment.file" title="Download Approved Document" class="ml-2 p-1 text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-300 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex-shrink-0 transition-transform hover:scale-110">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                      </svg>
+                     <button (click)="downloadFile(record.approvedAttachment)" [disabled]="isDownloading(record.approvedAttachment.path)" title="Download Approved Document" class="ml-2 p-1 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 disabled:text-slate-500 dark:disabled:text-slate-600 disabled:cursor-wait flex-shrink-0 transition-transform hover:scale-110">
+                       @if(isDownloading(record.approvedAttachment.path)) {
+                        <svg class="animate-spin h-5 w-5 text-sky-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      } @else {
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      }
                     </button>
                   </div>
                 }
@@ -65,13 +79,15 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
               {{ lastHistory.timestamp | date:'short' }}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <td class="px-6 py-4 text-sm font-medium">
               @if (availableActions.length > 0) {
-                @for(action of availableActions; track action.label) {
-                    <button (click)="openUpdateModal(record, action)" class="font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300 transition-all duration-150 hover:underline">
-                      {{ action.label }}
-                    </button>
-                }
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  @for(action of availableActions; track action.label) {
+                      <button (click)="openUpdateModal(record, action)" class="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 transition-all duration-150 hover:underline">
+                        {{ action.label }}
+                      </button>
+                  }
+                </div>
               } @else {
                 <span class="text-gray-400 dark:text-gray-500 italic">No actions available</span>
               }

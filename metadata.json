@@ -1,5 +1,5 @@
 {
   "name": "Wayleave Management System",
-  "description": "A record management system to handle the wayleave process, tracking documents through various departments like Planning, TSS, and EDD with role-based notifications and status updates.",
+  "description": "A role-based record management system with domain-restricted authentication to handle the wayleave process. It tracks documents through various departments like Planning, TSS, and EDD with role-based notifications and status updates.",
   "requestFramePermissions": []
 }
