@@ -6,6 +6,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 
 @Component({
   selector: 'app-update-status-form',
+  imports: [CommonModule, SpinnerComponent],
   template: `
 <div class="space-y-4">
   <p class="text-sm text-gray-600 dark:text-gray-300">
@@ -71,10 +72,8 @@ import { SpinnerComponent } from '../spinner/spinner.component';
       }
     </button>
   </div>
-</div>
-`,
+</div>`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, SpinnerComponent]
 })
 export class UpdateStatusFormComponent {
   isLoading = input<boolean>(false);

@@ -8,6 +8,7 @@ import { UpdateStatusFormComponent } from '../update-status-form/update-status-f
 
 @Component({
   selector: 'app-wayleave-list',
+  imports: [CommonModule, ModalComponent, UpdateStatusFormComponent],
   template: `
 <div class="bg-white dark:bg-slate-800/50 shadow-lg rounded-xl overflow-hidden ring-1 ring-slate-900/5">
   <div class="overflow-x-auto">
@@ -125,10 +126,8 @@ import { UpdateStatusFormComponent } from '../update-status-form/update-status-f
       (updateCancelled)="closeUpdateModal()">
     </app-update-status-form>
   </app-modal>
-}
-`,
+}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ModalComponent, UpdateStatusFormComponent],
 })
 export class WayleaveListComponent {
   wayleaveService = inject(WayleaveService);

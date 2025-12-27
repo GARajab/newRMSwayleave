@@ -1,6 +1,6 @@
 
 import { Component, ChangeDetectionStrategy, signal, inject, OnInit, computed } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { User } from '@supabase/supabase-js';
 import { AuthService, AugmentedUser } from '../../services/auth.service';
@@ -10,6 +10,7 @@ import { ModalComponent } from '../modal/modal.component';
 
 @Component({
   selector: 'app-user-management',
+  imports: [CommonModule, FormsModule, SpinnerComponent, ModalComponent],
   template: `
 <div class="bg-white dark:bg-slate-800/50 shadow-lg rounded-xl ring-1 ring-slate-900/5">
     @if (isLoading()) {
@@ -125,10 +126,8 @@ import { ModalComponent } from '../modal/modal.component';
       </div>
     </div>
   </app-modal>
-}
-`,
+}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, SpinnerComponent, DatePipe, ModalComponent],
 })
 export class UserManagementComponent implements OnInit {
   private authService = inject(AuthService);

@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-header',
+  imports: [CommonModule, NotificationBellComponent, NotificationListComponent],
   template: `
 <header class="bg-white/75 dark:bg-slate-900/75 backdrop-blur-lg sticky top-0 z-30 shadow-sm border-b border-slate-200 dark:border-slate-800">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,10 +42,8 @@ import { AuthService } from '../../services/auth.service';
       </div>
     </div>
   </div>
-</header>
-`,
+</header>`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, NotificationBellComponent, NotificationListComponent]
 })
 export class HeaderComponent {
   notifications = input.required<WayleaveRecord[]>();

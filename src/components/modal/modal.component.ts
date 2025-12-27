@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-modal',
+  imports: [CommonModule],
   template: `
 <div class="fixed inset-0 bg-black bg-opacity-60 z-40 modal-backdrop animate-fade-in" (click)="onBackdropClick($event)"></div>
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 animate-scale-in">
@@ -20,10 +21,8 @@ import { CommonModule } from '@angular/common';
       <ng-content></ng-content>
     </div>
   </div>
-</div>
-`,
+</div>`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
 })
 export class ModalComponent {
   title = input<string>('');

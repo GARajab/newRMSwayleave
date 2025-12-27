@@ -5,6 +5,7 @@ import { WayleaveRecord } from '../../models/wayleave.model';
 
 @Component({
   selector: 'app-notification-list',
+  imports: [CommonModule],
   template: `
 <div class="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-md shadow-lg overflow-hidden z-20 border border-slate-200 dark:border-slate-700">
   <div class="py-2 px-4 border-b border-slate-200 dark:border-slate-700">
@@ -30,10 +31,8 @@ import { WayleaveRecord } from '../../models/wayleave.model';
       </div>
     }
   </div>
-</div>
-`,
+</div>`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule]
 })
 export class NotificationListComponent {
   notifications = input.required<WayleaveRecord[]>();

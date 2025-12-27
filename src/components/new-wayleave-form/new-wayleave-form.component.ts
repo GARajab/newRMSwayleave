@@ -8,6 +8,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 
 @Component({
   selector: 'app-new-wayleave-form',
+  imports: [CommonModule, FormsModule, ModalComponent, SpinnerComponent],
   template: `
 <form (ngSubmit)="attemptSubmit()" #wayleaveForm="ngForm" class="space-y-6">
   <div>
@@ -80,10 +81,8 @@ import { SpinnerComponent } from '../spinner/spinner.component';
       </div>
     </div>
   </app-modal>
-}
-`,
+}`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, ModalComponent, SpinnerComponent],
 })
 export class NewWayleaveFormComponent {
   isLoading = input<boolean>(false);

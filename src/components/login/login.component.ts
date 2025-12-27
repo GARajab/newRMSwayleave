@@ -7,6 +7,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 
 @Component({
   selector: 'app-login',
+  imports: [CommonModule, FormsModule, SpinnerComponent],
   template: `
 <div class="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col justify-center items-center p-4">
   <div class="w-full max-w-md">
@@ -106,10 +107,8 @@ import { SpinnerComponent } from '../spinner/spinner.component';
       Access restricted to authorized personnel only.
     </p>
   </div>
-</div>
-`,
+</div>`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, SpinnerComponent]
 })
 export class LoginComponent {
   private authService = inject(AuthService);

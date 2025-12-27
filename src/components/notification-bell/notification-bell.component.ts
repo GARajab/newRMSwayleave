@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-notification-bell',
+  imports: [CommonModule],
   template: `
 <div class="relative">
   <button class="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
@@ -16,10 +17,8 @@ import { CommonModule } from '@angular/common';
       {{ count() }}
     </span>
   }
-</div>
-`,
+</div>`,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
 })
 export class NotificationBellComponent {
   count = input.required<number>();

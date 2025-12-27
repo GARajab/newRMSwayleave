@@ -1,16 +1,19 @@
 
 import '@angular/compiler';
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
-import { enableProdMode } from '@angular/core';
+import { bootstrapApplication } from '@angular/platform-browser';
+import { enableProdMode, provideZonelessChangeDetection } from '@angular/core';
 
-import { AppModule } from './src/app.module';
+import { AppComponent } from './src/app.component';
 
 // Enable production mode for the application.
 // This should be called before bootstrapping to disable Angular's development mode checks
 // and improve performance.
 enableProdMode();
 
-platformBrowserDynamic().bootstrapModule(AppModule)
-  .catch(err => console.error(err));
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideZonelessChangeDetection()
+  ]
+}).catch(err => console.error(err));
 
 // AI Studio always uses an `index.tsx` file for all project types.

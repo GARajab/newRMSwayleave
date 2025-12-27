@@ -15,6 +15,16 @@ import { UserManagementComponent } from './components/user-management/user-manag
 
 @Component({
   selector: 'app-root',
+  imports: [
+    CommonModule,
+    HeaderComponent,
+    WayleaveListComponent,
+    NewWayleaveFormComponent,
+    ModalComponent,
+    SpinnerComponent,
+    LoginComponent,
+    UserManagementComponent
+  ],
   template: `
 @if(isCheckingSession()) {
   <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
