@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "npm run build -- --index ./index.html"
   publish = "dist/wayleave-management-system/browser"
 
 [[redirects]]
