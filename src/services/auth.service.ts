@@ -78,11 +78,11 @@ export class AuthService {
         // Otherwise, we must fetch it (for INITIAL_SESSION or other events).
         const profile = authoritativeProfile || await this.supabaseService.getUserProfile(session.user.id);
 
-        if (profile?.status === 'active') {
+        if (profile?.status === 'active' && profile.role && profile.role !== 'Unassigned') {
             this.session.set(session);
             this.currentUserRole.set(profile.role);
         } else {
-            // User is pending, not found, or otherwise invalid. Ensure they are signed out.
+            // User is pending, not found, unassigned, or otherwise invalid. Ensure they are signed out.
             await this.supabaseService.signOut();
             this.session.set(null);
             this.currentUserRole.set(null);
