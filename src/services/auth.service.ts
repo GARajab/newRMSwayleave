@@ -1,10 +1,8 @@
 
 import { Injectable, signal, inject } from '@angular/core';
 import { SupabaseService } from './supabase.service';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 import { UserRole, UserProfile } from '../models/wayleave.model';
-
-export type AugmentedUser = User & { role: UserRole; status: 'active' | 'pending' };
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -12,6 +10,7 @@ export class AuthService {
   session = signal<Session | null>(null);
   
   currentUserRole = signal<UserRole | null>(null);
+  initializationError = signal<string | null>(null);
 
   isInitialized: Promise<void>;
   private resolveInitialized!: () => void;
@@ -22,58 +21,78 @@ export class AuthService {
     });
 
     this.supabaseService.getSession().then(async session => {
-      await this.setSession(session);
-      this.resolveInitialized();
+      try {
+        // For the very first load, perform a full session evaluation.
+        await this.setSessionAndProfile(session);
+      } catch (error: any) {
+        // Gracefully handle schema errors during initial load
+        if (error.message?.includes('does not exist')) {
+          this.initializationError.set(error.message);
+        } else {
+          this.initializationError.set('An unexpected error occurred while initializing the session.');
+          console.error("AuthService Initialization Error:", error);
+        }
+        // Ensure no partial session state remains on error
+        this.session.set(null);
+        this.currentUserRole.set(null);
+      } finally {
+        // Always resolve the promise to prevent the app from getting stuck on the initial loading spinner.
+        this.resolveInitialized();
+      }
     });
 
     this.supabaseService.onAuthStateChange(async (event, session) => {
-      // The signIn() method calls setSession with an authoritative profile.
-      // We MUST ignore the SIGNED_IN event here to prevent a race condition
-      // where this listener calls setSession without a profile, potentially
-      // fetching stale data from the database and overwriting the correct role.
+      // The signIn() method is the single source of truth for setting the session
+      // and user role upon a successful login. It provides an authoritative profile.
+      // To prevent a race condition where this listener might fetch a stale profile
+      // from the database right after login, we will completely ignore the SIGNED_IN event.
       if (event === 'SIGNED_IN') {
         return;
       }
-      // For all other events (INITIAL_SESSION, SIGNED_OUT, TOKEN_REFRESHED),
-      // the setSession method can safely manage the application's state.
-      await this.setSession(session);
+      
+      // A TOKEN_REFRESHED event means the user is the same, but they have a new token.
+      // We update the session object to reflect this new token, but crucially
+      // preserve the existing user role to avoid incorrect UI shifts.
+      if (event === 'TOKEN_REFRESHED' && session) {
+        this.session.set(session); // Only update the session, not the role.
+        return;
+      }
+
+      // For all other events (INITIAL_SESSION, SIGNED_OUT, USER_DELETED, etc.),
+      // we perform a full session and profile evaluation.
+      try {
+        await this.setSessionAndProfile(session);
+      } catch(error: any) {
+        console.error('Error during auth state change, signing out.', error);
+        // If profile becomes invalid, force a sign-out.
+        // The signOut call will trigger this listener again with a null session, correctly clearing the UI.
+        await this.supabaseService.signOut();
+      }
     });
   }
-
-  async setSession(session: Session | null, profile?: UserProfile | null) {
+  
+  private async setSessionAndProfile(session: Session | null, authoritativeProfile?: UserProfile | null) {
       if (session) {
-        // Path 1: An explicit profile is provided (from our signIn method).
-        // This is the source of truth during login.
-        if (profile) {
+        // If an authoritative profile is provided (from signIn), it's the source of truth.
+        // Otherwise, we must fetch it (for INITIAL_SESSION or other events).
+        const profile = authoritativeProfile || await this.supabaseService.getUserProfile(session.user.id);
+
+        if (profile?.status === 'active') {
             this.session.set(session);
             this.currentUserRole.set(profile.role);
-            return;
-        }
-
-        // Path 2: A background event for an already-logged-in user (e.g., TOKEN_REFRESHED).
-        // We only update the session object (which contains the new token) and preserve the existing role.
-        if (this.session()?.user?.id === session.user.id) {
-            this.session.set(session);
-            return;
-        }
-
-        // Path 3: A new session for a user we haven't seen yet (e.g., INITIAL_SESSION on app load).
-        // We must fetch their profile and validate their status.
-        const userProfile = await this.supabaseService.getUserProfile(session.user.id);
-        if (userProfile?.status === 'active') {
-            this.session.set(session);
-            this.currentUserRole.set(userProfile.role);
         } else {
             // User is pending, not found, or otherwise invalid. Ensure they are signed out.
             await this.supabaseService.signOut();
+            this.session.set(null);
+            this.currentUserRole.set(null);
         }
       } else {
-        // Path 4: The session is null (user has signed out). Clear all state.
+        // The session is null (user has signed out or session expired). Clear all state.
         this.session.set(null);
         this.currentUserRole.set(null);
       }
   }
-  
+
   async signUp(email: string, password: string): Promise<User> {
     return this.supabaseService.signUp(email, password);
   }
@@ -88,13 +107,10 @@ export class AuthService {
     // This seeds the first admin account, making them an active Admin.
     if (!profile && email === 'mohamed.rajab@ewa.bh') {
       console.log('Bootstrapping initial admin user...');
-      const user = await this.supabaseService.listUsers().then(users => users.find(u => u.email === email));
-      if (user) {
-         profile = await this.supabaseService.updateUserProfile(user.id, {
-            role: 'Admin',
-            status: 'active'
-         });
-      }
+      profile = await this.supabaseService.updateUserProfile(session.user.id, {
+        role: 'Admin',
+        status: 'active'
+      });
     }
 
     if (!profile) {
@@ -111,9 +127,9 @@ export class AuthService {
         throw new Error('Your account has not been assigned a role. Please contact an administrator.');
     }
 
-    // Explicitly call setSession here and pass the profile we just retrieved/created.
-    // This provides the authoritative state for the user's session and role.
-    await this.setSession(session, profile);
+    // Call the internal session manager with the authoritative profile we just retrieved/created.
+    // This ensures the correct role is set immediately and is protected from race conditions.
+    await this.setSessionAndProfile(session, profile);
 
     return session;
   }
@@ -122,34 +138,16 @@ export class AuthService {
     return this.supabaseService.signOut();
   }
   
-  async listAllUsers(): Promise<AugmentedUser[]> {
-    const [authUsers, profiles] = await Promise.all([
-      this.supabaseService.listUsers(),
-      this.supabaseService.listUserProfiles()
-    ]);
-
-    // FIX: Explicitly typing the Map helps TypeScript correctly infer the type of its values.
-    // This ensures `profile` is correctly typed as `UserProfile | undefined` instead of `unknown`.
-    const profilesMap = new Map<string, UserProfile>(profiles.map(p => [p.id, p]));
-
-    return authUsers.map(user => {
-      const profile = profilesMap.get(user.id);
-      return {
-        ...user,
-        role: profile?.role || 'Unassigned',
-        status: profile?.status || 'pending'
-      };
-    });
+  async listAllUsers(): Promise<UserProfile[]> {
+    return this.supabaseService.listUserProfiles();
   }
 
-  async activateUser(user: AugmentedUser): Promise<AugmentedUser> {
-      const updatedProfile = await this.supabaseService.updateUserProfile(user.id, { status: 'active' });
-      return { ...user, role: updatedProfile.role, status: updatedProfile.status };
+  async activateUser(user: UserProfile): Promise<UserProfile> {
+      return this.supabaseService.updateUserProfile(user.id, { status: 'active' });
   }
 
-  async updateUserRole(user: AugmentedUser, role: UserRole): Promise<AugmentedUser> {
-    const updatedProfile = await this.supabaseService.updateUserProfile(user.id, { role: role });
-    return { ...user, role: updatedProfile.role, status: updatedProfile.status };
+  async updateUserRole(user: UserProfile, role: UserRole): Promise<UserProfile> {
+    return this.supabaseService.updateUserProfile(user.id, { role: role });
   }
 
   async deleteUser(userId: string): Promise<void> {

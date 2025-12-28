@@ -28,7 +28,11 @@ export class SupabaseService {
   private channel: RealtimeChannel;
 
   constructor() {
-    this.supabase = createClient(this.supabaseUrl, this.supabaseKey);
+    this.supabase = createClient(this.supabaseUrl, this.supabaseKey, {
+      auth: {
+        multiTab: false,
+      }
+    });
     this.channel = this.supabase.channel('wayleave_records');
   }
 
@@ -65,19 +69,18 @@ export class SupabaseService {
   }
   
   // --- Admin Auth Methods ---
-  async listUsers(): Promise<User[]> {
-    const { data, error } = await this.supabase.auth.admin.listUsers();
-    if (error) {
-        console.error("Error listing users:", error.message, error);
-        throw error;
-    }
-    return data.users;
-  }
-
   async deleteUser(userId: string): Promise<void> {
-    const { error } = await this.supabase.auth.admin.deleteUser(userId);
+    // This performs a "soft delete" from the app's perspective by removing the profile.
+    // The user will no longer be able to log in, as their profile will be missing,
+    // and the auth service will reject the session. The user still exists in `auth.users`.
+    // A full delete requires the service_role key and should be done in a secure environment.
+    const { error } = await this.supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
     if (error) {
-      console.error(`Error deleting user ${userId}:`, error.message, error);
+      console.error(`Error deleting user profile ${userId}:`, error.message, error);
       throw error;
     }
   }
@@ -86,7 +89,7 @@ export class SupabaseService {
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     const { data, error } = await this.supabase
       .from('users')
-      .select('id, role, status, email')
+      .select('id, role, status, email, created_at')
       .eq('id', userId)
       .single();
     if (error) {
@@ -101,7 +104,7 @@ export class SupabaseService {
   }
 
   async listUserProfiles(): Promise<UserProfile[]> {
-    const { data, error } = await this.supabase.from('users').select('id, role, status, email');
+    const { data, error } = await this.supabase.from('users').select('id, role, status, email, created_at');
     if (error) {
       console.error('Error fetching user profiles:', error.message, error);
       throw error;
@@ -266,6 +269,53 @@ export class SupabaseService {
     if (updateError) {
       console.error('Error updating status:', updateError.message, updateError);
       throw updateError;
+    }
+  }
+
+  async deleteRecord(recordId: number): Promise<void> {
+    // First, get the record to find the attachment paths
+    const { data: record, error: fetchError } = await this.supabase
+        .from('wayleave_records')
+        .select('attachment_path, approved_attachment_path')
+        .eq('id', recordId)
+        .single();
+
+    if (fetchError) {
+        console.error(`Error fetching record ${recordId} for deletion:`, fetchError.message);
+        throw fetchError;
+    }
+
+    // Collect file paths to delete
+    const filesToDelete: string[] = [];
+    if (record.attachment_path) {
+        filesToDelete.push(record.attachment_path);
+    }
+    if (record.approved_attachment_path) {
+        filesToDelete.push(record.approved_attachment_path);
+    }
+
+    // Delete files from storage if they exist
+    if (filesToDelete.length > 0) {
+        const { error: storageError } = await this.supabase.storage
+            .from(this.bucketName)
+            .remove(filesToDelete);
+
+        if (storageError) {
+            // Log the error but proceed to delete the DB record anyway,
+            // as orphaned files are less critical than a failed deletion.
+            console.error(`Could not delete attachments for record ${recordId}:`, storageError.message);
+        }
+    }
+
+    // Finally, delete the record from the database
+    const { error: deleteError } = await this.supabase
+        .from('wayleave_records')
+        .delete()
+        .eq('id', recordId);
+    
+    if (deleteError) {
+        console.error(`Error deleting record ${recordId}:`, deleteError.message);
+        throw deleteError;
     }
   }
 

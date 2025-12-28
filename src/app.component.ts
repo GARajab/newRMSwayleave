@@ -30,7 +30,7 @@ import { AdminPortalComponent } from './components/admin-portal/admin-portal.com
   <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
     <app-spinner></app-spinner>
   </div>
-} @else if (!session()) {
+} @else if (!session() && !appError()) {
   <app-login></app-login>
 } @else if (isAppLoading()) {
   <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -192,27 +192,40 @@ export class AppComponent implements OnInit {
   async ngOnInit() {
     // This resolves when the initial session check is done.
     await this.authService.isInitialized; 
+
+    // After initialization, check if a critical error occurred (e.g., schema mismatch).
+    const initError = this.authService.initializationError();
+    if (initError) {
+      // If an initialization error is found, the app cannot proceed.
+      // Display the error page with the setup script immediately.
+      this.handleAppError(initError, 'A database schema error was detected during application startup.');
+    }
     this.isCheckingSession.set(false);
+  }
+
+  private handleAppError(error: any, userFriendlyMessage: string) {
+    console.error('Application Error:', error);
+    const setupSQL = this.getSetupSQL();
+    const errorMessage = typeof error === 'string' ? error : error.message;
+    
+    if (errorMessage?.includes('does not exist') || errorMessage?.includes('Could not find the table')) {
+       this.appError.set(userFriendlyMessage);
+       this.setupSqlScript.set(setupSQL);
+       console.info('--- SUPABASE SETUP SCRIPT --- \nPlease run the following SQL in your Supabase project\'s SQL Editor to create the necessary tables, storage bucket, and security policies:\n\n' + setupSQL);
+    } else if (errorMessage?.includes('new row violates row-level security policy')) {
+       this.appError.set(`Database permission error. Your user role may not have the required permissions to perform this action. Please contact your administrator.`);
+    } else if (errorMessage?.includes('insufficient privileges')) {
+       this.appError.set(`Security Error: Your Supabase API key lacks the required permissions for user management. To enable this feature, you must use the 'service_role' key. Warning: Do not expose this key in a production browser environment. This feature is intended for admin panels running in a secure server environment.`);
+    } else {
+       this.appError.set(`An unexpected error occurred. Please check the developer console for more details. The error was: ${errorMessage}`);
+    }
   }
 
   async initializeAppData() {
     try {
       await this.wayleaveService.initializeData();
     } catch (error: any) {
-      console.error('Failed to initialize application:', error.message, error);
-      const setupSQL = this.getSetupSQL();
-      
-      if (error.message?.includes('does not exist') || error.message?.includes('Could not find the table')) {
-         this.appError.set(`Your database is missing the required tables.`);
-         this.setupSqlScript.set(setupSQL);
-         console.info('--- SUPABASE SETUP SCRIPT --- \nPlease run the following SQL in your Supabase project\'s SQL Editor to create the necessary tables, storage bucket, and security policies:\n\n' + setupSQL);
-      } else if (error.message?.includes('new row violates row-level security policy')) {
-         this.appError.set(`Database permission error. Your user role may not have the required permissions to perform this action. Please contact your administrator.`);
-      } else if (error.message?.includes('insufficient privileges')) {
-         this.appError.set(`Security Error: Your Supabase API key lacks the required permissions for user management. To enable this feature, you must use the 'service_role' key. Warning: Do not expose this key in a production browser environment. This feature is intended for admin panels running in a secure server environment.`);
-      } else {
-         this.appError.set(`Failed to load data from the database. This could be a network issue or a problem with your Supabase Row Level Security (RLS) policies. Please check your browser's developer console for more details. The error was: ${error.message}`);
-      }
+      this.handleAppError(error, 'Your database is missing the required tables or columns.');
     } finally {
       this.isAppLoading.set(false);
     }
@@ -273,15 +286,32 @@ export class AppComponent implements OnInit {
 
   private getSetupSQL(): string {
     return `-- Wayleave Management System Setup Script
--- This script creates necessary tables, roles, and security policies.
+-- This script creates necessary tables, roles, and security policies. It is idempotent.
 
--- 1. Create a table for user profiles
+-- 1. Manage the user profiles table and its columns for migration
+-- First, ensure the table exists.
 CREATE TABLE IF NOT EXISTS public.users (
   id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
   role TEXT DEFAULT 'Unassigned',
   status TEXT DEFAULT 'pending'
 );
+
+-- Safely add the 'created_at' column. Add it with a temporary default value and NOT NULL
+-- constraint to prevent errors on existing databases.
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+-- Backfill 'created_at' with the correct signup time from the auth.users table.
+-- This will overwrite the temporary default value with the accurate historical data.
+UPDATE public.users u
+SET created_at = a.created_at
+FROM auth.users a
+WHERE u.id = a.id;
+
+-- After backfilling, remove the temporary default. The handle_new_user trigger below
+-- will be responsible for providing this value for all new sign-ups.
+ALTER TABLE public.users ALTER COLUMN created_at DROP DEFAULT;
+
 
 -- 2. Create the table for wayleave records
 CREATE TABLE IF NOT EXISTS public.wayleave_records (
@@ -325,8 +355,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email)
-  VALUES (new.id, new.email);
+  INSERT INTO public.users (id, email, created_at)
+  VALUES (new.id, new.email, new.created_at);
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -355,6 +385,10 @@ CREATE POLICY "Allow admins to manage all profiles" ON public.users
 FOR ALL TO authenticated USING (get_current_user_role() = 'Admin')
 WITH CHECK (get_current_user_role() = 'Admin');
 
+DROP POLICY IF EXISTS "Allow admins to delete users" ON public.users;
+CREATE POLICY "Allow admins to delete users" ON public.users
+FOR DELETE TO authenticated USING (get_current_user_role() = 'Admin');
+
 
 -- 8. Define RLS Policies for public.wayleave_records table
 DROP POLICY IF EXISTS "Allow authenticated read access" ON public.wayleave_records;
@@ -376,6 +410,10 @@ FOR UPDATE TO authenticated USING (
   (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR
   (get_current_user_role() = 'Admin')
 );
+
+DROP POLICY IF EXISTS "Allow Admin to delete" ON public.wayleave_records;
+CREATE POLICY "Allow Admin to delete" ON public.wayleave_records
+FOR DELETE TO authenticated USING ( (get_current_user_role() = 'Admin') );
 
 
 -- 9. Define RLS Policies for storage.objects

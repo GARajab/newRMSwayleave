@@ -38,13 +38,13 @@ import { SpinnerComponent } from '../spinner/spinner.component';
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
             <div class="mt-1">
-              <input type="email" id="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400" />
+              <input type="email" id="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white" />
             </div>
           </div>
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
             <div class="mt-1">
-              <input type="password" id="password" name="password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400" />
+              <input type="password" id="password" name="password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white" />
             </div>
           </div>
           
@@ -80,19 +80,19 @@ import { SpinnerComponent } from '../spinner/spinner.component';
           <div>
             <label for="reg-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
             <div class="mt-1">
-              <input type="email" id="reg-email" name="reg-email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400" />
+              <input type="email" id="reg-email" name="reg-email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white" />
             </div>
           </div>
           <div>
             <label for="reg-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
             <div class="mt-1">
-              <input type="password" id="reg-password" name="reg-password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400" />
+              <input type="password" id="reg-password" name="reg-password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white" />
             </div>
           </div>
            <div>
             <label for="confirm-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>
             <div class="mt-1">
-              <input type="password" id="confirm-password" name="confirm-password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400" />
+              <input type="password" id="confirm-password" name="confirm-password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white" />
             </div>
           </div>
           
@@ -160,8 +160,13 @@ export class LoginComponent {
     } catch (error: any) {
       console.error('Login failed:', error.message, error);
       const errorMsg = error.message?.toLowerCase() || '';
-      if (errorMsg.includes('users') && (errorMsg.includes('does not exist') || errorMsg.includes('could not find the table'))) {
-        this.errorMessage.set('Database setup incomplete: The "users" table is missing. Please contact your administrator to run the initial database setup script.');
+      
+      if (errorMsg.includes('column') && errorMsg.includes('does not exist')) {
+        this.errorMessage.set('Database schema is out of date. Please ask an administrator to run the latest setup script to fix the issue.');
+      } else if (errorMsg.includes('table') && errorMsg.includes('does not exist')) {
+        this.errorMessage.set('Database setup incomplete: A required table is missing. Please ask an administrator to run the setup script.');
+      } else if (errorMsg.includes('invalid login credentials')) {
+        this.errorMessage.set('Invalid email or password.');
       } else {
         this.errorMessage.set(error.message || 'An unexpected error occurred during login.');
       }

@@ -2,9 +2,8 @@
 import { Component, ChangeDetectionStrategy, signal, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { User } from '@supabase/supabase-js';
-import { AuthService, AugmentedUser } from '../../services/auth.service';
-import { UserRole } from '../../models/wayleave.model';
+import { AuthService } from '../../services/auth.service';
+import { UserRole, UserProfile } from '../../models/wayleave.model';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { ModalComponent } from '../modal/modal.component';
 
@@ -49,15 +48,13 @@ import { ModalComponent } from '../modal/modal.component';
             </thead>
             <tbody class="bg-white dark:bg-slate-800 divide-y divide-slate-200/75 dark:divide-slate-700/50">
                 @for(user of filteredUsers(); track user.id; let i = $index) {
-                    @let status = getUserStatus(user);
-                    @let role = getUserRole(user);
                     <tr class="animate-fade-in-up hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors duration-150" [style.animation-delay]="i * 50 + 'ms'">
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <p class="font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
                             <p class="text-gray-500 dark:text-gray-400">Registered: {{ user.created_at | date:'shortDate' }}</p>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                             @if(status === 'active') {
+                             @if(user.status === 'active') {
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400">
                                     Active
                                 </span>
@@ -68,9 +65,9 @@ import { ModalComponent } from '../modal/modal.component';
                             }
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                           @if (status === 'active') {
+                           @if (user.status === 'active') {
                                 <select 
-                                    [ngModel]="role" 
+                                    [ngModel]="user.role" 
                                     (change)="onRoleChange(user, $event)"
                                     [disabled]="user.id === selfId || updatingStates()[user.id]"
                                     class="block w-full max-w-[150px] pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed">
@@ -85,7 +82,7 @@ import { ModalComponent } from '../modal/modal.component';
                         </td>
                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex items-center space-x-2">
-                                @if (status === 'active') {
+                                @if (user.status === 'active') {
                                     <button 
                                         (click)="saveRoleChange(user)" 
                                         [disabled]="!isRoleChanged(user) || updatingStates()[user.id] || user.id === selfId"
@@ -182,7 +179,7 @@ import { ModalComponent } from '../modal/modal.component';
 export class UserManagementComponent implements OnInit {
   private authService = inject(AuthService);
   
-  users = signal<AugmentedUser[]>([]);
+  users = signal<UserProfile[]>([]);
   isLoading = signal(true);
   error = signal<string | null>(null);
   searchTerm = signal('');
@@ -191,10 +188,10 @@ export class UserManagementComponent implements OnInit {
   updatingStates = signal<Record<string, boolean>>({});
 
   isConfirmAdminModalOpen = signal(false);
-  userToMakeAdmin = signal<AugmentedUser | null>(null);
+  userToMakeAdmin = signal<UserProfile | null>(null);
 
   isConfirmDeleteModalOpen = signal(false);
-  userToDelete = signal<AugmentedUser | null>(null);
+  userToDelete = signal<UserProfile | null>(null);
   isDeleting = signal(false);
 
   readonly assignableRoles: UserRole[] = ['PLANNING', 'TSS', 'EDD', 'Admin'];
@@ -224,15 +221,15 @@ export class UserManagementComponent implements OnInit {
     }
   }
   
-  getUserStatus(user: AugmentedUser): 'active' | 'pending' {
+  getUserStatus(user: UserProfile): 'active' | 'pending' {
     return user.status;
   }
 
-  getUserRole(user: AugmentedUser): UserRole {
+  getUserRole(user: UserProfile): UserRole {
     return user.role;
   }
   
-  onRoleChange(user: AugmentedUser, event: Event) {
+  onRoleChange(user: UserProfile, event: Event) {
     const selectedRole = (event.target as HTMLSelectElement).value as UserRole;
     if (selectedRole === 'Admin') {
       this.userToMakeAdmin.set(user);
@@ -258,11 +255,11 @@ export class UserManagementComponent implements OnInit {
     this.userToMakeAdmin.set(null);
   }
   
-  isRoleChanged(user: AugmentedUser): boolean {
+  isRoleChanged(user: UserProfile): boolean {
     return this.selectedRoles[user.id] && this.selectedRoles[user.id] !== this.getUserRole(user);
   }
 
-  async activateUser(user: AugmentedUser) {
+  async activateUser(user: UserProfile) {
     if (this.updatingStates()[user.id]) return;
     this.updatingStates.update(s => ({ ...s, [user.id]: true }));
 
@@ -276,7 +273,7 @@ export class UserManagementComponent implements OnInit {
     }
   }
   
-  async saveRoleChange(user: AugmentedUser) {
+  async saveRoleChange(user: UserProfile) {
     const newRole = this.selectedRoles[user.id];
     if (!newRole || this.updatingStates()[user.id]) return;
 
@@ -294,7 +291,7 @@ export class UserManagementComponent implements OnInit {
     }
   }
 
-  openDeleteConfirmModal(user: AugmentedUser) {
+  openDeleteConfirmModal(user: UserProfile) {
     this.userToDelete.set(user);
     this.isConfirmDeleteModalOpen.set(true);
   }

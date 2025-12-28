@@ -33,17 +33,23 @@ export class WayleaveService {
   }
 
   async addRecord(wayleaveNumber: string, attachment: File): Promise<void> {
-    if (!this.currentUser()) {
-        throw new Error("User is not authenticated");
+    const actor = this.currentUser();
+    if (!actor) {
+        throw new Error("User is not authenticated or has no role assigned.");
     }
-    await this.supabaseService.addRecord(wayleaveNumber, attachment, this.currentUser()!);
+    await this.supabaseService.addRecord(wayleaveNumber, attachment, actor);
   }
 
   async updateStatus(recordId: number, newStatus: WayleaveStatus, actor: UserRole, approvedAttachmentFile?: File): Promise<void> {
+    // FIX: Corrected the logic to pass the 'actor' from the method parameter instead of the current user's role. This ensures that actions performed by an Admin in the dashboard are correctly logged with the 'Admin' role in the wayleave history, rather than being misattributed to the logged-in user's role if they were different.
     await this.supabaseService.updateStatus(recordId, newStatus, actor, approvedAttachmentFile);
-    // No manual refresh needed; real-time listener will update the records.
   }
   
+  async deleteRecord(recordId: number): Promise<void> {
+    await this.supabaseService.deleteRecord(recordId);
+    // Real-time listener will handle removing the record from the signal.
+  }
+
   async getAttachmentDownloadUrl(path: string): Promise<string> {
     return this.supabaseService.getAttachmentUrl(path);
   }

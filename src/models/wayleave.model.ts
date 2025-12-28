@@ -31,4 +31,5 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   status: 'active' | 'pending';
+  created_at: string;
 }
