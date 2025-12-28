@@ -3,7 +3,6 @@ import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit, e
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from './components/header/header.component';
 import { WayleaveListComponent } from './components/wayleave-list/wayleave-list.component';
-// FIX: Corrected typo in component name from NewLeaveFormComponent to NewWayleaveFormComponent.
 import { NewWayleaveFormComponent } from './components/new-wayleave-form/new-wayleave-form.component';
 import { ModalComponent } from './components/modal/modal.component';
 import { WayleaveService } from './services/wayleave.service';
@@ -27,65 +26,65 @@ import { AdminPortalComponent } from './components/admin-portal/admin-portal.com
   ],
   template: `
 @if(isCheckingSession()) {
-  <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+  <div class="fixed inset-0 flex items-center justify-center bg-gray-50">
     <app-spinner></app-spinner>
   </div>
 } @else if (!session() && !appError()) {
   <app-login></app-login>
 } @else if (isAppLoading()) {
-  <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+  <div class="fixed inset-0 flex items-center justify-center bg-gray-50">
     <app-spinner></app-spinner>
   </div>
 } @else if (appError()) {
   @if (setupSqlScript()) {
-    <div class="fixed inset-0 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 p-4 sm:p-8">
-      <div class="w-full max-w-4xl bg-white dark:bg-slate-800 rounded-lg shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-900/20">
-          <h3 class="font-bold text-xl text-red-800 dark:text-red-200 flex items-center gap-3">
+    <div class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100 p-4 sm:p-8">
+      <div class="w-full max-w-4xl bg-white rounded-lg shadow-2xl overflow-hidden ring-1 ring-gray-900/5">
+        <div class="p-6 border-b border-gray-200 bg-red-50">
+          <h3 class="font-bold text-xl text-red-800 flex items-center gap-3">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <span>Action Required: Database Setup</span>
           </h3>
-          <p class="mt-2 text-base text-red-700 dark:text-red-300">{{ appError() }}</p>
+          <p class="mt-2 text-base text-red-700">{{ appError() }}</p>
         </div>
-        <div class="p-6 space-y-6 bg-slate-50 dark:bg-slate-800/50">
-          <p class="text-slate-600 dark:text-slate-300">To get the application running, please run the following SQL script in your Supabase project's SQL Editor.</p>
+        <div class="p-6 space-y-6 bg-gray-50">
+          <p class="text-gray-600">To get the application running, please run the following SQL script in your Supabase project's SQL Editor.</p>
           
           <div class="relative">
-            <button (click)="copySetupSql()" class="absolute top-2 right-2 px-3 py-1 bg-slate-200 dark:bg-slate-700 text-sm font-medium rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors">
+            <button (click)="copySetupSql()" class="absolute top-2 right-2 px-3 py-1 bg-gray-200 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
               @if(copySuccess()) {
-                <span class="text-green-600 dark:text-green-400">Copied!</span>
+                <span class="text-green-600">Copied!</span>
               } @else {
                 <span>Copy Script</span>
               }
             </button>
-            <pre class="bg-slate-100 dark:bg-slate-900/70 p-4 rounded-md overflow-x-auto text-sm text-slate-800 dark:text-slate-200 max-h-60 sm:max-h-80 border border-slate-200 dark:border-slate-700"><code>{{ setupSqlScript() }}</code></pre>
+            <pre class="bg-gray-100 p-4 rounded-md overflow-x-auto text-sm text-gray-800 max-h-60 sm:max-h-80 border border-gray-200"><code>{{ setupSqlScript() }}</code></pre>
           </div>
 
           <div>
-             <h4 class="font-semibold text-lg text-slate-800 dark:text-slate-100 mb-3">Instructions</h4>
-             <ol class="list-decimal list-inside space-y-2 text-slate-600 dark:text-slate-300">
+             <h4 class="font-semibold text-lg text-gray-800 mb-3">Instructions</h4>
+             <ol class="list-decimal list-inside space-y-2 text-gray-600">
                 <li>Click the <strong>"Copy Script"</strong> button above.</li>
-                <li>Go to your project dashboard on <a href="https://supabase.com/" target="_blank" rel="noopener" class="text-sky-500 hover:underline font-medium">supabase.com</a>.</li>
-                <li>In the left menu, navigate to the <strong class="font-semibold text-slate-700 dark:text-slate-200">SQL Editor</strong> (database icon).</li>
-                <li>Click <strong class="font-semibold text-slate-700 dark:text-slate-200">"+ New query"</strong>, paste the script, and click <strong class="font-semibold text-green-600 dark:text-green-400">"RUN"</strong>.</li>
-                <li>Once the script is successful, <strong class="font-semibold text-slate-700 dark:text-slate-200">refresh this page</strong>.</li>
+                <li>Go to your project dashboard on <a href="https://supabase.com/" target="_blank" rel="noopener" class="text-indigo-500 hover:underline font-medium">supabase.com</a>.</li>
+                <li>In the left menu, navigate to the <strong class="font-semibold text-gray-700">SQL Editor</strong> (database icon).</li>
+                <li>Click <strong class="font-semibold text-gray-700">"+ New query"</strong>, paste the script, and click <strong class="font-semibold text-green-600">"RUN"</strong>.</li>
+                <li>Once the script is successful, <strong class="font-semibold text-gray-700">refresh this page</strong>.</li>
              </ol>
           </div>
         </div>
       </div>
     </div>
   } @else {
-    <div class="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-8">
-      <div class="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-6 rounded-lg shadow-lg max-w-2xl ring-1 ring-red-500/20">
-        <h3 class="font-bold text-lg mb-2 text-red-800 dark:text-red-200">Application Error</h3>
+    <div class="fixed inset-0 flex items-center justify-center bg-gray-50 p-8">
+      <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-lg max-w-2xl ring-1 ring-red-500/20">
+        <h3 class="font-bold text-lg mb-2 text-red-800">Application Error</h3>
         <p class="text-base">{{ appError() }}</p>
       </div>
     </div>
   }
 } @else {
-  <div class="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+  <div class="min-h-screen bg-gray-50 text-gray-800">
     <app-header 
       [notifications]="notifications()"
       [notificationCount]="notificationCount()"
@@ -99,25 +98,23 @@ import { AdminPortalComponent } from './components/admin-portal/admin-portal.com
         <div class="max-w-7xl mx-auto">
           <div class="flex justify-between items-center mb-6">
             <div class="flex items-center gap-4">
-              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
                   Wayleave Dashboard
               </h1>
-              <button (click)="refreshData()" [disabled]="isRefreshing()" title="Refresh Data" class="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:cursor-wait disabled:opacity-50 transition-colors">
+              <button (click)="refreshData()" [disabled]="isRefreshing()" title="Refresh Data" class="p-2 rounded-full text-gray-500 hover:bg-gray-200 disabled:cursor-wait disabled:opacity-50 transition-colors">
                 @if (isRefreshing()) {
-                  <svg class="animate-spin h-5 w-5 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 } @else {
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5m0 0l-5-5m5 5l-5 5M4 4l5 5" />
-                  </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 17H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg>
                 }
               </button>
             </div>
             <div class="flex items-center gap-4">
               @if (currentUser() === 'PLANNING') {
-                <button (click)="openNewWayleaveModal()" class="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-md shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-150 hover:scale-105 active:scale-100">
+                <button (click)="openNewWayleaveModal()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150 hover:scale-105 active:scale-100">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                   </svg>
@@ -185,6 +182,14 @@ export class AppComponent implements OnInit {
         this.appError.set(null);
         this.setupSqlScript.set(null);
         await this.initializeAppData();
+      }
+    });
+
+    // Watch for runtime errors from auth service (e.g., during login)
+    effect(() => {
+      const error = this.authService.runtimeError();
+      if (error) {
+        this.handleAppError(error, 'A database schema error was detected during login.');
       }
     });
   }
@@ -354,9 +359,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- This function will be called by the trigger.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  new_role TEXT;
+  new_status TEXT;
 BEGIN
-  INSERT INTO public.users (id, email, created_at)
-  VALUES (new.id, new.email, new.created_at);
+  -- Check if the new user is the designated admin and automatically activate them.
+  -- Use lower() to make the check case-insensitive.
+  IF lower(new.email) = 'mohamed.rajab@ewa.bh' THEN
+    new_role := 'Admin';
+    new_status := 'active';
+  ELSE
+    new_role := 'Unassigned';
+    new_status := 'pending';
+  END IF;
+
+  INSERT INTO public.users (id, email, created_at, role, status)
+  VALUES (new.id, new.email, new.created_at, new_role, new_status);
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

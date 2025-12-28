@@ -1,8 +1,0 @@
-[build]
-  command = "npm run build -- --index ./index.html"
-  publish = "dist/wayleave-management-system/browser"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200

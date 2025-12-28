@@ -11,8 +11,8 @@ import { ModalComponent } from '../modal/modal.component';
   selector: 'app-user-management',
   imports: [CommonModule, FormsModule, SpinnerComponent, ModalComponent],
   template: `
-<div class="bg-white dark:bg-slate-800/50 shadow-lg rounded-xl ring-1 ring-slate-900/5">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700">
+<div class="bg-white shadow-lg rounded-xl ring-1 ring-gray-900/5">
+    <div class="p-4 border-b border-gray-200">
         <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -23,7 +23,7 @@ import { ModalComponent } from '../modal/modal.component';
                 type="search" 
                 (input)="searchTerm.set($event.target.value)"
                 placeholder="Search by email..." 
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white dark:bg-slate-700 dark:border-slate-600 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-sky-500 focus:border-sky-500 sm:text-sm" />
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
         </div>
     </div>
     @if (isLoading()) {
@@ -32,34 +32,34 @@ import { ModalComponent } from '../modal/modal.component';
         </div>
     } @else if (error()) {
         <div class="p-8 text-center">
-            <p class="text-red-500 dark:text-red-400 font-semibold">Error</p>
-            <p class="text-slate-600 dark:text-slate-300 mt-2">{{ error() }}</p>
+            <p class="text-red-500 font-semibold">Error</p>
+            <p class="text-gray-600 mt-2">{{ error() }}</p>
         </div>
     } @else {
         <div class="overflow-x-auto">
             <table class="min-w-full">
-            <thead class="bg-slate-50 dark:bg-slate-700/50">
+            <thead class="bg-gray-50">
                 <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
-            <tbody class="bg-white dark:bg-slate-800 divide-y divide-slate-200/75 dark:divide-slate-700/50">
+            <tbody class="bg-white divide-y divide-gray-200/75">
                 @for(user of filteredUsers(); track user.id; let i = $index) {
-                    <tr class="animate-fade-in-up hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors duration-150" [style.animation-delay]="i * 50 + 'ms'">
+                    <tr class="animate-fade-in-up hover:bg-gray-50/50 transition-colors duration-150" [style.animation-delay]="i * 50 + 'ms'">
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <p class="font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
-                            <p class="text-gray-500 dark:text-gray-400">Registered: {{ user.created_at | date:'shortDate' }}</p>
+                            <p class="font-medium text-gray-900">{{ user.email }}</p>
+                            <p class="text-gray-500">Registered: {{ user.created_at | date:'shortDate' }}</p>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                              @if(user.status === 'active') {
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                     Active
                                 </span>
                             } @else {
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-400">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                     Pending
                                 </span>
                             }
@@ -70,14 +70,14 @@ import { ModalComponent } from '../modal/modal.component';
                                     [ngModel]="user.role" 
                                     (change)="onRoleChange(user, $event)"
                                     [disabled]="user.id === selfId || updatingStates()[user.id]"
-                                    class="block w-full max-w-[150px] pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                    class="block w-full max-w-[150px] pl-3 pr-10 py-2 text-base border-gray-300 bg-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                                     <option value="Unassigned">Unassigned</option>
                                     @for(r of assignableRoles; track r) {
                                         <option [value]="r">{{ r }}</option>
                                     }
                                 </select>
                            } @else {
-                               <span class="text-gray-400 dark:text-gray-500 italic">N/A</span>
+                               <span class="text-gray-400 italic">N/A</span>
                            }
                         </td>
                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -86,7 +86,7 @@ import { ModalComponent } from '../modal/modal.component';
                                     <button 
                                         (click)="saveRoleChange(user)" 
                                         [disabled]="!isRoleChanged(user) || updatingStates()[user.id] || user.id === selfId"
-                                        class="flex justify-center items-center w-20 px-3 py-1.5 bg-sky-500 text-white text-xs rounded-md shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-sky-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
+                                        class="flex justify-center items-center w-20 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors">
                                         @if (updatingStates()[user.id] && isRoleChanged(user)) {
                                             <app-spinner></app-spinner>
                                         } @else {
@@ -97,7 +97,7 @@ import { ModalComponent } from '../modal/modal.component';
                                     <button
                                         (click)="activateUser(user)"
                                         [disabled]="updatingStates()[user.id]"
-                                        class="flex justify-center items-center w-24 px-3 py-1.5 bg-green-500 text-white text-xs rounded-md shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
+                                        class="flex justify-center items-center w-24 px-3 py-1.5 bg-green-500 text-white text-xs rounded-md shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-300 disabled:cursor-not-allowed transition-colors">
                                         @if (updatingStates()[user.id]) {
                                             <app-spinner></app-spinner>
                                         } @else {
@@ -109,7 +109,7 @@ import { ModalComponent } from '../modal/modal.component';
                                     (click)="openDeleteConfirmModal(user)"
                                     [disabled]="user.id === selfId || updatingStates()[user.id]"
                                     title="Delete User"
-                                    class="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/10 rounded-full disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors">
+                                    class="p-2 text-red-500 hover:bg-red-100 rounded-full disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                                     </svg>
@@ -119,7 +119,7 @@ import { ModalComponent } from '../modal/modal.component';
                     </tr>
                 } @empty {
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
                             {{ searchTerm() ? 'No users match your search.' : 'No users found.' }}
                         </td>
                     </tr>
@@ -133,13 +133,13 @@ import { ModalComponent } from '../modal/modal.component';
 @if (isConfirmAdminModalOpen() && userToMakeAdmin()) {
   <app-modal title="Confirm Admin Promotion" (close)="closeAdminConfirmModal()">
     <div class="text-center">
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-6">
+      <p class="text-lg text-gray-700 mb-6">
         Are you sure you want to grant
         <span class="font-bold">full administrator privileges</span> 
         to {{ userToMakeAdmin()!.email }}?
       </p>
       <div class="flex justify-center space-x-4">
-        <button (click)="closeAdminConfirmModal()" class="px-6 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors">
+        <button (click)="closeAdminConfirmModal()" class="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
           Cancel
         </button>
         <button (click)="confirmAdminPromotion()" class="px-6 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
@@ -153,13 +153,13 @@ import { ModalComponent } from '../modal/modal.component';
 @if (isConfirmDeleteModalOpen() && userToDelete()) {
   <app-modal title="Confirm User Deletion" (close)="closeDeleteConfirmModal()">
     <div class="text-center">
-      <p class="text-lg text-gray-700 dark:text-gray-300 mb-2">
+      <p class="text-lg text-gray-700 mb-2">
         Are you sure you want to permanently delete this user?
       </p>
-      <p class="font-semibold text-slate-800 dark:text-slate-100 mb-4">{{ userToDelete()!.email }}</p>
-      <p class="text-sm text-red-600 dark:text-red-400 mb-6">This action is irreversible and will remove all associated data.</p>
+      <p class="font-semibold text-gray-800 mb-4">{{ userToDelete()!.email }}</p>
+      <p class="text-sm text-red-600 mb-6">This action is irreversible and will remove all associated data.</p>
       <div class="flex justify-center space-x-4">
-        <button (click)="closeDeleteConfirmModal()" class="px-6 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-colors">
+        <button (click)="closeDeleteConfirmModal()" class="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
           Cancel
         </button>
         <button (click)="confirmDeletion()" class="flex justify-center items-center w-32 px-6 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">

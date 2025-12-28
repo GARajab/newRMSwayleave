@@ -8,10 +8,10 @@ import { CommonModule } from '@angular/common';
   template: `
 <div class="fixed inset-0 bg-black bg-opacity-60 z-40 modal-backdrop animate-fade-in" (click)="onBackdropClick($event)"></div>
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 animate-scale-in">
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg mx-auto" role="dialog" aria-modal="true" [attr.aria-labelledby]="title()">
-    <div class="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-      <h3 class="text-lg font-semibold text-slate-900 dark:text-white" [id]="title()">{{ title() }}</h3>
-      <button (click)="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-transform hover:rotate-90 duration-200" aria-label="Close modal">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto" role="dialog" aria-modal="true" [attr.aria-labelledby]="title()">
+    <div class="flex justify-between items-center p-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900" [id]="title()">{{ title() }}</h3>
+      <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none transition-transform hover:rotate-90 duration-200" aria-label="Close modal">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>

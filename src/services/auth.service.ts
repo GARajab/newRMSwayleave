@@ -11,6 +11,7 @@ export class AuthService {
   
   currentUserRole = signal<UserRole | null>(null);
   initializationError = signal<string | null>(null);
+  runtimeError = signal<string | null>(null);
 
   isInitialized: Promise<void>;
   private resolveInitialized!: () => void;
@@ -98,40 +99,38 @@ export class AuthService {
   }
 
   async signIn(email: string, password: string): Promise<Session> {
-    const session = await this.supabaseService.signInWithPassword(email, password);
-    
-    // After successful login, fetch the user's profile from our public.users table.
-    let profile = await this.supabaseService.getUserProfile(session.user.id);
-
-    // ONE-TIME BOOTSTRAP: If the designated admin logs in and has no profile, create it.
-    // This seeds the first admin account, making them an active Admin.
-    if (!profile && email === 'mohamed.rajab@ewa.bh') {
-      console.log('Bootstrapping initial admin user...');
-      profile = await this.supabaseService.updateUserProfile(session.user.id, {
-        role: 'Admin',
-        status: 'active'
-      });
-    }
-
-    if (!profile) {
-      await this.supabaseService.signOut();
-      throw new Error('User profile not found. The database trigger may have failed. Please contact an administrator.');
-    }
-    
-    if (profile.status !== 'active') {
+    try {
+      const session = await this.supabaseService.signInWithPassword(email, password);
+      
+      // After successful login, fetch the user's profile.
+      // The profile is now guaranteed to exist with the correct role/status by the DB trigger.
+      const profile = await this.supabaseService.getUserProfile(session.user.id);
+  
+      if (!profile) {
         await this.supabaseService.signOut();
-        throw new Error('Your account is not active. Please contact an administrator.');
+        throw new Error('User profile not found. The database trigger may have failed. Please contact an administrator.');
+      }
+      
+      if (profile.status !== 'active') {
+          await this.supabaseService.signOut();
+          throw new Error('Your account is not active. Please contact an administrator.');
+      }
+      if (!profile.role || profile.role === 'Unassigned') {
+          await this.supabaseService.signOut();
+          throw new Error('Your account has not been assigned a role. Please contact an administrator.');
+      }
+  
+      // Set the session with the authoritative profile.
+      await this.setSessionAndProfile(session, profile);
+  
+      return session;
+    } catch (error: any) {
+        const errorMsg = error.message?.toLowerCase() || '';
+        if (errorMsg.includes('does not exist') || errorMsg.includes('could not find the table')) {
+            this.runtimeError.set(error.message);
+        }
+        throw error; // Re-throw for component-level handling
     }
-    if (!profile.role || profile.role === 'Unassigned') {
-        await this.supabaseService.signOut();
-        throw new Error('Your account has not been assigned a role. Please contact an administrator.');
-    }
-
-    // Call the internal session manager with the authoritative profile we just retrieved/created.
-    // This ensures the correct role is set immediately and is protected from race conditions.
-    await this.setSessionAndProfile(session, profile);
-
-    return session;
   }
 
   async signOut(): Promise<void> {
