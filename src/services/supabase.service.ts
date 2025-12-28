@@ -55,9 +55,15 @@ export class SupabaseService {
   }
 
   async signOut() {
+    // Check if there is an active session before attempting to sign out
+    const { data } = await this.supabase.auth.getSession();
+    if (!data.session) {
+      return;
+    }
+
     const { error } = await this.supabase.auth.signOut();
-    // Ignore errors during sign out (like 403 Forbidden or "Auth session missing!")
-    if (error) console.warn('Logout warning (ignored):', error.message);
+    // Silently ignore errors during sign out (like 403 Forbidden) as the user is logging out anyway
+    if (error) return;
   }
 
   async getSession(): Promise<Session | null> {
