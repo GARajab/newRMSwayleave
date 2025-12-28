@@ -245,7 +245,7 @@ export class SupabaseService {
 
   async updateStatus(recordId: number, newStatus: WayleaveStatus, actor: UserRole, approvedAttachmentFile?: File): Promise<void> {
     // Enforce mandatory attachment when approving (sending back to Planning)
-    if (newStatus === 'Approved' && !approvedAttachmentFile) {
+    if (newStatus === 'Sent to Planning (EDD)' && !approvedAttachmentFile) {
       throw new Error('Mandatory: Please attach the approved document before sending back to Planning.');
     }
 

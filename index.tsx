@@ -1,7 +1,7 @@
 
 import '@angular/compiler';
 import { bootstrapApplication } from '@angular/platform-browser';
-import { enableProdMode, provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { enableProdMode, provideZonelessChangeDetection } from '@angular/core';
 
 import { AppComponent } from './src/app.component';
 
@@ -12,7 +12,7 @@ enableProdMode();
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideExperimentalZonelessChangeDetection()
+    provideZonelessChangeDetection()
   ]
 }).catch(err => console.error(err));
 

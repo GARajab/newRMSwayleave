@@ -1,4 +1,4 @@
-
+// App Component
 import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from './components/header/header.component';
@@ -11,6 +11,8 @@ import { SpinnerComponent } from './components/spinner/spinner.component';
 import { AuthService } from './services/auth.service';
 import { LoginComponent } from './components/login/login.component';
 import { AdminPortalComponent } from './components/admin-portal/admin-portal.component';
+import { ToastComponent } from './components/toast-notification/toast.component';
+import { ToastService } from './services/toast.service';
 
 @Component({
   selector: 'app-root',
@@ -22,9 +24,11 @@ import { AdminPortalComponent } from './components/admin-portal/admin-portal.com
     ModalComponent,
     SpinnerComponent,
     LoginComponent,
-    AdminPortalComponent
+    AdminPortalComponent,
+    ToastComponent
   ],
   template: `
+<app-toast></app-toast>
 @if(isCheckingSession()) {
   <div class="fixed inset-0 flex items-center justify-center bg-gray-50">
     <app-spinner></app-spinner>
@@ -145,6 +149,7 @@ import { AdminPortalComponent } from './components/admin-portal/admin-portal.com
 export class AppComponent implements OnInit {
   wayleaveService = inject(WayleaveService);
   authService = inject(AuthService);
+  toastService = inject(ToastService);
 
   isAppLoading = signal(true);
   isCheckingSession = signal(true);
@@ -250,8 +255,9 @@ export class AppComponent implements OnInit {
     try {
       await this.wayleaveService.addRecord(record.wayleaveNumber, record.attachment);
       this.isNewWayleaveModalOpen.set(false);
+      this.toastService.success('Wayleave created successfully');
     } catch (error: any) {
-      alert(`Error creating record: ${error.message}`);
+      this.toastService.error(`Error creating record: ${error.message}`);
     } finally {
       this.isCreatingWayleave.set(false);
     }
@@ -261,8 +267,9 @@ export class AppComponent implements OnInit {
     this.isRefreshing.set(true);
     try {
       await this.wayleaveService.initializeData();
+      this.toastService.success('Data refreshed');
     } catch (error: any) {
-      alert(`Failed to refresh data: ${error.message}`);
+      this.toastService.error(`Failed to refresh data: ${error.message}`);
     } finally {
       this.isRefreshing.set(false);
     }
@@ -282,7 +289,7 @@ export class AppComponent implements OnInit {
       setTimeout(() => this.copySuccess.set(false), 2500);
     } catch (err) {
       console.error('Failed to copy text: ', err);
-      alert('Failed to copy script. Please copy it manually from the text area.');
+      this.toastService.error('Failed to copy script. Please copy it manually.');
     }
   }
 

@@ -8,6 +8,7 @@ import { ModalComponent } from '../modal/modal.component';
 import { UpdateStatusFormComponent } from '../update-status-form/update-status-form.component';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-form.component';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-wayleave-list',
@@ -132,6 +133,13 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
                 }
             </select>
         </div>
+        @if (newStatusForAdmin === 'Sent to Planning (EDD)') {
+          <div>
+            <label for="admin-attachment" class="block text-sm font-medium text-gray-700">Approved Document (Required)</label>
+            <input type="file" id="admin-attachment" (change)="onAdminFileSelected($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            <p class="mt-1 text-xs text-gray-500">Please attach the approved wayleave document.</p>
+          </div>
+        }
          <div class="flex justify-end space-x-4 pt-4">
             <button type="button" (click)="closeAdminUpdateModal()" [disabled]="isUpdatingStatusAdmin()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
             <button type="submit" [disabled]="isUpdatingStatusAdmin() || newStatusForAdmin === recordToUpdateAdmin()!.status" class="flex justify-center items-center w-28 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed">
@@ -175,7 +183,8 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
 })
 export class WayleaveListComponent {
   wayleaveService = inject(WayleaveService);
-  
+  toastService = inject(ToastService);
+
   records = this.wayleaveService.records;
   currentUser = this.wayleaveService.currentUser;
   downloadingPaths = signal<string[]>([]);
@@ -185,7 +194,7 @@ export class WayleaveListComponent {
   isUpdatingStatus = signal(false);
   recordToUpdate = signal<WayleaveRecord | null>(null);
   actionToPerform = signal<{ label: string, newStatus: WayleaveStatus, actor: UserRole } | null>(null);
-  
+
   // State for deletion flow
   recordToDelete = signal<WayleaveRecord | null>(null);
   isDeletingRecord = signal(false);
@@ -194,6 +203,7 @@ export class WayleaveListComponent {
   recordToUpdateAdmin = signal<WayleaveRecord | null>(null);
   isUpdatingStatusAdmin = signal(false);
   newStatusForAdmin: WayleaveStatus = 'Waiting for TSS Action';
+  adminFile: File | null = null;
   readonly allStatuses: WayleaveStatus[] = ['Waiting for TSS Action', 'Sent to MOW', 'Sent to Planning (EDD)', 'Completed'];
 
   recordToEdit = signal<WayleaveRecord | null>(null);
@@ -220,7 +230,7 @@ export class WayleaveListComponent {
     } else if (user === 'EDD' && status === 'Sent to Planning (EDD)') {
       actions.push({ label: 'Mark as Completed', newStatus: 'Completed', actor: 'EDD' });
     }
-    
+
     return actions;
   }
 
@@ -246,14 +256,15 @@ export class WayleaveListComponent {
     }
     this.closeUpdateModal();
   }
-  
+
   // --- Admin Methods ---
   openAdminUpdateModal(record: WayleaveRecord) {
     this.newStatusForAdmin = record.status;
     this.recordToUpdateAdmin.set(record);
+    this.adminFile = null;
   }
   closeAdminUpdateModal() {
-    if(this.isUpdatingStatusAdmin()) return;
+    if (this.isUpdatingStatusAdmin()) return;
     this.recordToUpdateAdmin.set(null);
   }
   async handleAdminStatusUpdate() {
@@ -261,12 +272,13 @@ export class WayleaveListComponent {
     if (!record || record.status === this.newStatusForAdmin) return;
     this.isUpdatingStatusAdmin.set(true);
     try {
-        await this.wayleaveService.updateStatus(record.id, this.newStatusForAdmin, 'Admin');
-        this.closeAdminUpdateModal();
-    } catch(e: any) {
-        alert(`Error: ${e.message}`);
+      await this.wayleaveService.updateStatus(record.id, this.newStatusForAdmin, 'Admin', this.adminFile || undefined);
+      this.toastService.success('Status updated successfully');
+      this.closeAdminUpdateModal();
+    } catch (e: any) {
+      this.toastService.error(`Error: ${e.message}`);
     } finally {
-        this.isUpdatingStatusAdmin.set(false);
+      this.isUpdatingStatusAdmin.set(false);
     }
   }
 
@@ -274,21 +286,22 @@ export class WayleaveListComponent {
     this.recordToEdit.set(record);
   }
   closeEditModal() {
-    if(this.isEditingRecord()) return;
+    if (this.isEditingRecord()) return;
     this.recordToEdit.set(null);
   }
   async handleRecordUpdate(event: { recordId: number, wayleaveNumber: string }) {
     this.isEditingRecord.set(true);
     try {
       await this.wayleaveService.updateRecordDetails(event.recordId, event.wayleaveNumber);
+      this.toastService.success('Record updated successfully');
       this.closeEditModal();
-    } catch(e: any) {
-      alert(`Error updating record: ${e.message}`);
+    } catch (e: any) {
+      this.toastService.error(`Error updating record: ${e.message}`);
     } finally {
       this.isEditingRecord.set(false);
     }
   }
-  
+
   // --- Deletion Methods ---
   openDeleteModal(record: WayleaveRecord) { this.recordToDelete.set(record); }
   closeDeleteModal() {
@@ -300,12 +313,13 @@ export class WayleaveListComponent {
     if (!record) return;
     this.isDeletingRecord.set(true);
     try {
-        await this.wayleaveService.deleteRecord(record.id);
-        this.closeDeleteModal();
-    } catch(e: any) {
-        alert(`Error: ${e.message}`);
+      await this.wayleaveService.deleteRecord(record.id);
+      this.toastService.success('Record deleted successfully');
+      this.closeDeleteModal();
+    } catch (e: any) {
+      this.toastService.error(`Error: ${e.message}`);
     } finally {
-        this.isDeletingRecord.set(false);
+      this.isDeletingRecord.set(false);
     }
   }
 
@@ -320,7 +334,7 @@ export class WayleaveListComponent {
 
   async downloadFile(attachment: AttachmentInfo | undefined) {
     if (!attachment) {
-      alert('No file available for download.');
+      this.toastService.info('No file available for download.');
       return;
     }
     this.downloadingPaths.update(paths => [...paths, attachment.path]);
@@ -334,7 +348,7 @@ export class WayleaveListComponent {
       document.body.removeChild(a);
     } catch (error: any) {
       console.error('Failed to get download URL', error.message, error);
-      alert('Could not download file. Please try again.');
+      this.toastService.error('Could not download file. Please try again.');
     } finally {
       this.downloadingPaths.update(paths => paths.filter(p => p !== attachment.path));
     }
@@ -343,5 +357,10 @@ export class WayleaveListComponent {
   isDownloading(path: string | undefined): boolean {
     if (!path) return false;
     return this.downloadingPaths().includes(path);
+  }
+
+  onAdminFileSelected(event: any) {
+    const file = event.target.files[0];
+    this.adminFile = file || null;
   }
 }
