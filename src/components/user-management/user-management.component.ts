@@ -6,7 +6,6 @@ import { AuthService } from '../../services/auth.service';
 import { UserRole, UserProfile } from '../../models/wayleave.model';
 import { SpinnerComponent } from '../spinner/spinner.component';
 import { ModalComponent } from '../modal/modal.component';
-import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-user-management',
@@ -179,13 +178,12 @@ import { ToastService } from '../../services/toast.service';
 })
 export class UserManagementComponent implements OnInit {
   private authService = inject(AuthService);
-  private toastService = inject(ToastService);
-
+  
   users = signal<UserProfile[]>([]);
   isLoading = signal(true);
   error = signal<string | null>(null);
   searchTerm = signal('');
-
+  
   selectedRoles: { [userId: string]: UserRole } = {};
   updatingStates = signal<Record<string, boolean>>({});
 
@@ -214,15 +212,15 @@ export class UserManagementComponent implements OnInit {
     } catch (err: any) {
       console.error('Failed to fetch users:', err.message, err);
       if (err.message.includes('insufficient privileges')) {
-        this.error.set(`Security Error: Your Supabase API key lacks permissions for user management. Use the 'service_role' key for this feature. Warning: Do not expose this in a production browser environment.`);
+         this.error.set(`Security Error: Your Supabase API key lacks permissions for user management. Use the 'service_role' key for this feature. Warning: Do not expose this in a production browser environment.`);
       } else {
-        this.error.set('Failed to load user data. Check console for details.');
+         this.error.set('Failed to load user data. Check console for details.');
       }
     } finally {
       this.isLoading.set(false);
     }
   }
-
+  
   getUserStatus(user: UserProfile): 'active' | 'pending' {
     return user.status;
   }
@@ -230,7 +228,7 @@ export class UserManagementComponent implements OnInit {
   getUserRole(user: UserProfile): UserRole {
     return user.role;
   }
-
+  
   onRoleChange(user: UserProfile, event: Event) {
     const selectedRole = (event.target as HTMLSelectElement).value as UserRole;
     if (selectedRole === 'Admin') {
@@ -243,20 +241,26 @@ export class UserManagementComponent implements OnInit {
     }
   }
 
-  confirmAdminPromotion() {
+  async confirmAdminPromotion() {
     const user = this.userToMakeAdmin();
-    if (user) {
+    if (!user) {
+      this.closeAdminConfirmModal();
+      return;
+    };
+    
+    try {
       this.selectedRoles[user.id] = 'Admin';
-      this.saveRoleChange(user);
+      await this.saveRoleChange(user);
+    } finally {
+      this.closeAdminConfirmModal();
     }
-    this.closeAdminConfirmModal();
   }
 
   closeAdminConfirmModal() {
     this.isConfirmAdminModalOpen.set(false);
     this.userToMakeAdmin.set(null);
   }
-
+  
   isRoleChanged(user: UserProfile): boolean {
     return this.selectedRoles[user.id] && this.selectedRoles[user.id] !== this.getUserRole(user);
   }
@@ -268,14 +272,13 @@ export class UserManagementComponent implements OnInit {
     try {
       const updatedUser = await this.authService.activateUser(user);
       this.users.update(users => users.map(u => u.id === user.id ? updatedUser : u));
-      this.toastService.success(`User ${user.email} activated`);
     } catch (err: any) {
-      this.toastService.error(`Error activating user: ${err.message}`);
+      alert(`Error activating user: ${err.message}`);
     } finally {
       this.updatingStates.update(s => ({ ...s, [user.id]: false }));
     }
   }
-
+  
   async saveRoleChange(user: UserProfile) {
     const newRole = this.selectedRoles[user.id];
     if (!newRole || this.updatingStates()[user.id]) return;
@@ -286,10 +289,9 @@ export class UserManagementComponent implements OnInit {
       const updatedUser = await this.authService.updateUserRole(user, newRole);
       this.users.update(users => users.map(u => u.id === user.id ? updatedUser : u));
       delete this.selectedRoles[user.id];
-      this.toastService.success(`Role updated for ${user.email}`);
     } catch (err: any) {
       console.error('Failed to update role:', err.message, err);
-      this.toastService.error(`Error updating role: ${err.message}`);
+      alert(`Error updating role for ${user.email}: ${err.message}`);
     } finally {
       this.updatingStates.update(s => ({ ...s, [user.id]: false }));
     }
@@ -308,19 +310,21 @@ export class UserManagementComponent implements OnInit {
 
   async confirmDeletion() {
     const user = this.userToDelete();
-    if (!user) return;
-
+    if (!user) {
+        this.closeDeleteConfirmModal();
+        return;
+    };
+    
     this.isDeleting.set(true);
     try {
       await this.authService.deleteUser(user.id);
       this.users.update(currentUsers => currentUsers.filter(u => u.id !== user.id));
-      this.closeDeleteConfirmModal();
-      this.toastService.success('User deleted successfully');
     } catch (err: any) {
       console.error('Failed to delete user:', err.message, err);
-      this.toastService.error(`Error deleting user: ${err.message}`);
+      alert(`Error deleting user: ${err.message}`);
     } finally {
       this.isDeleting.set(false);
+      this.closeDeleteConfirmModal();
     }
   }
 }

@@ -25,17 +25,14 @@ export class SupabaseService {
   private supabaseUrl = 'https://igdsslhrtlzvbjxelgyz.supabase.co';
   private supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlnZHNzbGhydGx6dmJqeGVsZ3l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2Nzc4MzYsImV4cCI6MjA4MjI1MzgzNn0.aBnlOyyDsz7NcGGIQhL6C3DMLh0ZmPVxO4p-0XyuCgk';
   private bucketName = 'wayleave-attachments';
-  private channel: RealtimeChannel;
+  private channel: RealtimeChannel | null = null;
 
   constructor() {
     this.supabase = createClient(this.supabaseUrl, this.supabaseKey, {
       auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true
+        multiTab: false,
       }
     });
-    this.channel = this.supabase.channel('wayleave_records');
   }
 
   // --- Auth Methods ---
@@ -55,28 +52,21 @@ export class SupabaseService {
   }
 
   async signOut() {
-    // Check if there is an active session before attempting to sign out
-    const { data } = await this.supabase.auth.getSession();
-    if (!data.session) {
-      return;
-    }
-
     const { error } = await this.supabase.auth.signOut();
-    // Silently ignore errors during sign out (like 403 Forbidden) as the user is logging out anyway
-    if (error) return;
+    if (error) throw error;
   }
 
   async getSession(): Promise<Session | null> {
-    const { data, error } = await this.supabase.auth.getSession();
-    if (error) throw error;
-    return data.session;
+      const { data, error } = await this.supabase.auth.getSession();
+      if (error) throw error;
+      return data.session;
   }
 
   onAuthStateChange(callback: (event: AuthChangeEvent, session: Session | null) => void) {
-    const { data } = this.supabase.auth.onAuthStateChange(callback);
-    return data.subscription;
+      const { data } = this.supabase.auth.onAuthStateChange(callback);
+      return data.subscription;
   }
-
+  
   // --- Admin Auth Methods ---
   async deleteUser(userId: string): Promise<void> {
     // This performs a "soft delete" from the app's perspective by removing the profile.
@@ -120,7 +110,7 @@ export class SupabaseService {
     }
     return data as UserProfile[];
   }
-
+  
   async updateUserProfile(userId: string, data: Partial<{ role: UserRole; status: string }>): Promise<UserProfile> {
     const { data: updatedData, error } = await this.supabase
       .from('users')
@@ -134,6 +124,23 @@ export class SupabaseService {
       throw error;
     }
     return updatedData as UserProfile;
+  }
+  
+  // --- Setup Verification Method ---
+  async checkSetupStatus(): Promise<{ is_complete: boolean; missing?: string[] }> {
+    const { data, error } = await this.supabase.rpc('check_setup_status');
+    if (error) {
+        const errorMsg = error.message?.toLowerCase();
+        // If the RPC function itself doesn't exist, it's a clear sign of an incomplete setup.
+        // We catch this specific error and return a structured response instead of throwing.
+        if (errorMsg && (errorMsg.includes('function public.check_setup_status() does not exist') || errorMsg.includes('could not find the function'))) {
+            return { is_complete: false, missing: ['function: check_setup_status'] };
+        }
+        // For any other unexpected RPC errors, we log and re-throw.
+        console.error('Error calling check_setup_status RPC:', error.message, error);
+        throw error;
+    }
+    return data;
   }
 
   // --- Data Methods ---
@@ -173,41 +180,54 @@ export class SupabaseService {
     return data.map(this.mapDbRecordToWayleaveRecord);
   }
 
-  listenToChanges(
+  subscribeToChanges(
     addRecord: (record: WayleaveRecord) => void,
     updateRecord: (record: WayleaveRecord) => void,
     deleteRecord: (id: number) => void
   ): void {
+    if (this.channel) {
+      this.unsubscribeFromChanges();
+    }
+    
+    this.channel = this.supabase.channel('wayleave_records');
+
     this.channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'wayleave_records' },
-      (payload) => {
-        console.log('Real-time change received:', payload);
-        switch (payload.eventType) {
-          case 'INSERT':
-            addRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
-            break;
-          case 'UPDATE':
-            updateRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
-            break;
-          case 'DELETE':
-            // The 'id' is in the 'old' part of the payload for deletes
-            deleteRecord((payload.old as { id: number }).id);
-            break;
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wayleave_records' },
+        (payload) => {
+          console.log('Real-time change received:', payload);
+          switch (payload.eventType) {
+            case 'INSERT':
+              addRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
+              break;
+            case 'UPDATE':
+              updateRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
+              break;
+            case 'DELETE':
+              // The 'id' is in the 'old' part of the payload for deletes
+              deleteRecord((payload.old as { id: number }).id);
+              break;
+          }
         }
-      }
-    )
+      )
       .subscribe((status, err) => {
         if (err) {
-          console.error('Real-time subscription error:', err.message, err);
+            console.error('Real-time subscription error:', err.message, err);
         }
       });
+  }
+
+  unsubscribeFromChanges(): void {
+    if (this.channel) {
+      this.supabase.removeChannel(this.channel);
+      this.channel = null;
+    }
   }
 
   private async uploadAttachment(file: File, wayleaveNumber: string): Promise<{ path: string }> {
     const fileExt = file.name.split('.').pop();
     const filePath = `${wayleaveNumber}/${new Date().getTime()}.${fileExt}`;
-
+    
     const { error } = await this.supabase.storage
       .from(this.bucketName)
       .upload(filePath, file);
@@ -244,11 +264,6 @@ export class SupabaseService {
   }
 
   async updateStatus(recordId: number, newStatus: WayleaveStatus, actor: UserRole, approvedAttachmentFile?: File): Promise<void> {
-    // Enforce mandatory attachment when approving (sending back to Planning)
-    if (newStatus === 'Sent to Planning (EDD)' && !approvedAttachmentFile) {
-      throw new Error('Mandatory: Please attach the approved document before sending back to Planning.');
-    }
-
     const { data: currentRecord, error: fetchError } = await this.supabase
       .from('wayleave_records')
       .select('history, wayleave_number')
@@ -262,7 +277,7 @@ export class SupabaseService {
 
     const newHistoryEntry: HistoryEntry = { status: newStatus, timestamp: new Date(), actor };
     const updatedHistory = [...currentRecord.history, newHistoryEntry];
-
+    
     const updateData: Partial<DbRecord> = {
       status: newStatus,
       history: updatedHistory,
@@ -301,47 +316,47 @@ export class SupabaseService {
   async deleteRecord(recordId: number): Promise<void> {
     // First, get the record to find the attachment paths
     const { data: record, error: fetchError } = await this.supabase
-      .from('wayleave_records')
-      .select('attachment_path, approved_attachment_path')
-      .eq('id', recordId)
-      .single();
+        .from('wayleave_records')
+        .select('attachment_path, approved_attachment_path')
+        .eq('id', recordId)
+        .single();
 
     if (fetchError) {
-      console.error(`Error fetching record ${recordId} for deletion:`, fetchError.message);
-      throw fetchError;
+        console.error(`Error fetching record ${recordId} for deletion:`, fetchError.message);
+        throw fetchError;
     }
 
     // Collect file paths to delete
     const filesToDelete: string[] = [];
     if (record.attachment_path) {
-      filesToDelete.push(record.attachment_path);
+        filesToDelete.push(record.attachment_path);
     }
     if (record.approved_attachment_path) {
-      filesToDelete.push(record.approved_attachment_path);
+        filesToDelete.push(record.approved_attachment_path);
     }
 
     // Delete files from storage if they exist
     if (filesToDelete.length > 0) {
-      const { error: storageError } = await this.supabase.storage
-        .from(this.bucketName)
-        .remove(filesToDelete);
+        const { error: storageError } = await this.supabase.storage
+            .from(this.bucketName)
+            .remove(filesToDelete);
 
-      if (storageError) {
-        // Log the error but proceed to delete the DB record anyway,
-        // as orphaned files are less critical than a failed deletion.
-        console.error(`Could not delete attachments for record ${recordId}:`, storageError.message);
-      }
+        if (storageError) {
+            // Log the error but proceed to delete the DB record anyway,
+            // as orphaned files are less critical than a failed deletion.
+            console.error(`Could not delete attachments for record ${recordId}:`, storageError.message);
+        }
     }
 
     // Finally, delete the record from the database
     const { error: deleteError } = await this.supabase
-      .from('wayleave_records')
-      .delete()
-      .eq('id', recordId);
-
+        .from('wayleave_records')
+        .delete()
+        .eq('id', recordId);
+    
     if (deleteError) {
-      console.error(`Error deleting record ${recordId}:`, deleteError.message);
-      throw deleteError;
+        console.error(`Error deleting record ${recordId}:`, deleteError.message);
+        throw deleteError;
     }
   }
 

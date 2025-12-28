@@ -1,9 +1,9 @@
-// App Component
-import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit, effect } from '@angular/core';
+
+import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit, effect, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from './components/header/header.component';
 import { WayleaveListComponent } from './components/wayleave-list/wayleave-list.component';
-import { NewWayleaveFormComponent } from './components/new-wayleave-form/new-wayleave-form.component';
+import { NewWayleaveWizardComponent } from './components/new-wayleave-wizard/new-wayleave-wizard.component';
 import { ModalComponent } from './components/modal/modal.component';
 import { WayleaveService } from './services/wayleave.service';
 import { UserRole, WayleaveRecord } from './models/wayleave.model';
@@ -11,8 +11,6 @@ import { SpinnerComponent } from './components/spinner/spinner.component';
 import { AuthService } from './services/auth.service';
 import { LoginComponent } from './components/login/login.component';
 import { AdminPortalComponent } from './components/admin-portal/admin-portal.component';
-import { ToastComponent } from './components/toast-notification/toast.component';
-import { ToastService } from './services/toast.service';
 
 @Component({
   selector: 'app-root',
@@ -20,15 +18,13 @@ import { ToastService } from './services/toast.service';
     CommonModule,
     HeaderComponent,
     WayleaveListComponent,
-    NewWayleaveFormComponent,
+    NewWayleaveWizardComponent,
     ModalComponent,
     SpinnerComponent,
     LoginComponent,
-    AdminPortalComponent,
-    ToastComponent
+    AdminPortalComponent
   ],
   template: `
-<app-toast></app-toast>
 @if(isCheckingSession()) {
   <div class="fixed inset-0 flex items-center justify-center bg-gray-50">
     <app-spinner></app-spinner>
@@ -40,7 +36,7 @@ import { ToastService } from './services/toast.service';
     <app-spinner></app-spinner>
   </div>
 } @else if (appError()) {
-  @if (setupSqlScript()) {
+  @if (setupInstructions()) {
     <div class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100 p-4 sm:p-8">
       <div class="w-full max-w-4xl bg-white rounded-lg shadow-2xl overflow-hidden ring-1 ring-gray-900/5">
         <div class="p-6 border-b border-gray-200 bg-red-50">
@@ -52,30 +48,23 @@ import { ToastService } from './services/toast.service';
           </h3>
           <p class="mt-2 text-base text-red-700">{{ appError() }}</p>
         </div>
-        <div class="p-6 space-y-6 bg-gray-50">
-          <p class="text-gray-600">To get the application running, please run the following SQL script in your Supabase project's SQL Editor.</p>
+        <div class="p-6 space-y-6 bg-gray-50 max-h-[calc(100vh-12rem)] overflow-y-auto">
+          <p class="text-gray-600">To complete the application setup, please run the following SQL script in your Supabase SQL Editor.</p>
           
-          <div class="relative">
-            <button (click)="copySetupSql()" class="absolute top-2 right-2 px-3 py-1 bg-gray-200 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-              @if(copySuccess()) {
-                <span class="text-green-600">Copied!</span>
-              } @else {
-                <span>Copy Script</span>
-              }
-            </button>
-            <pre class="bg-gray-100 p-4 rounded-md overflow-x-auto text-sm text-gray-800 max-h-60 sm:max-h-80 border border-gray-200"><code>{{ setupSqlScript() }}</code></pre>
+          <!-- Step 1: Database Script -->
+          <div class="p-4 border rounded-md bg-white">
+            <h4 class="font-semibold text-lg text-gray-800 mb-2">Step 1: Run the Database Setup Script</h4>
+             <p class="text-sm text-gray-600 mb-2">This script will create the necessary tables, roles, and security policies for the application to function correctly.</p>
+            <div class="relative mt-2">
+              <button (click)="copyToClipboard(setupInstructions()!.sqlScript, 'sqlScript')" class="absolute top-2 right-2 px-3 py-1 bg-gray-200 text-xs font-medium rounded-md hover:bg-gray-300">
+                {{ copySuccess() === 'sqlScript' ? 'Copied!' : 'Copy Script' }}
+              </button>
+              <pre class="bg-gray-100 p-2 rounded-md overflow-x-auto text-xs max-h-96"><code>{{ setupInstructions()!.sqlScript }}</code></pre>
+            </div>
           </div>
+          
+          <p class="text-center font-semibold text-gray-700 pt-4">After running the script, refresh this page.</p>
 
-          <div>
-             <h4 class="font-semibold text-lg text-gray-800 mb-3">Instructions</h4>
-             <ol class="list-decimal list-inside space-y-2 text-gray-600">
-                <li>Click the <strong>"Copy Script"</strong> button above.</li>
-                <li>Go to your project dashboard on <a href="https://supabase.com/" target="_blank" rel="noopener" class="text-indigo-500 hover:underline font-medium">supabase.com</a>.</li>
-                <li>In the left menu, navigate to the <strong class="font-semibold text-gray-700">SQL Editor</strong> (database icon).</li>
-                <li>Click <strong class="font-semibold text-gray-700">"+ New query"</strong>, paste the script, and click <strong class="font-semibold text-green-600">"RUN"</strong>.</li>
-                <li>Once the script is successful, <strong class="font-semibold text-gray-700">refresh this page</strong>.</li>
-             </ol>
-          </div>
         </div>
       </div>
     </div>
@@ -134,11 +123,11 @@ import { ToastService } from './services/toast.service';
 
     @if (isNewWayleaveModalOpen()) {
       <app-modal title="Initiate New Wayleave" (close)="closeNewWayleaveModal()">
-        <app-new-wayleave-form 
+        <app-new-wayleave-wizard
           [isLoading]="isCreatingWayleave()"
           (formSubmitted)="handleWayleaveCreated($event)" 
           (formCancelled)="closeNewWayleaveModal()">
-        </app-new-wayleave-form>
+        </app-new-wayleave-wizard>
       </app-modal>
     }
   </div>
@@ -149,7 +138,6 @@ import { ToastService } from './services/toast.service';
 export class AppComponent implements OnInit {
   wayleaveService = inject(WayleaveService);
   authService = inject(AuthService);
-  toastService = inject(ToastService);
 
   isAppLoading = signal(true);
   isCheckingSession = signal(true);
@@ -157,12 +145,12 @@ export class AppComponent implements OnInit {
   isCreatingWayleave = signal(false);
   isRefreshing = signal(false);
   appError = signal<string | null>(null);
-  setupSqlScript = signal<string | null>(null);
-  copySuccess = signal(false);
+  setupInstructions = signal<{ sqlScript: string } | null>(null);
+  copySuccess = signal<'sqlScript' | null>(null);
 
   session = this.authService.session;
   currentUser = this.wayleaveService.currentUser;
-
+  
   notifications = computed(() => {
     const user = this.currentUser();
     if (!user) return [];
@@ -171,7 +159,7 @@ export class AppComponent implements OnInit {
       if (user === 'EDD' && record.status === 'Sent to Planning (EDD)') return true;
       // Admins see all notifications
       if (user === 'Admin') {
-        if (record.status === 'Waiting for TSS Action' || record.status === 'Sent to Planning (EDD)') return true;
+         if (record.status === 'Waiting for TSS Action' || record.status === 'Sent to Planning (EDD)') return true;
       }
       return false;
     });
@@ -180,28 +168,38 @@ export class AppComponent implements OnInit {
   notificationCount = computed(() => this.notifications().length);
 
   constructor() {
-    effect(async () => {
-      // When session becomes available (user logs in), load app data.
+    const destroyRef = inject(DestroyRef);
+
+    effect(() => {
+      // When session becomes available, load app data and start real-time updates.
+      // When session is cleared (logout), stop real-time updates.
       if (this.session()) {
         this.isAppLoading.set(true);
         this.appError.set(null);
-        this.setupSqlScript.set(null);
-        await this.initializeAppData();
+        this.setupInstructions.set(null);
+        this.initializeAppData();
+        this.wayleaveService.startRealtimeUpdates();
+      } else {
+        this.wayleaveService.stopRealtimeUpdates();
       }
+    });
+    
+    destroyRef.onDestroy(() => {
+        this.wayleaveService.stopRealtimeUpdates();
     });
 
     // Watch for runtime errors from auth service (e.g., during login)
     effect(() => {
       const error = this.authService.runtimeError();
       if (error) {
-        this.handleAppError(error, 'A database schema error was detected during login.');
+        this.handleAppError(error);
       }
     });
   }
 
   async ngOnInit() {
     // This resolves when the initial session check is done.
-    await this.authService.isInitialized;
+    await this.authService.isInitialized; 
 
     // After initialization, check if a critical error occurred (e.g., schema mismatch).
     const initError = this.authService.initializationError();
@@ -213,21 +211,26 @@ export class AppComponent implements OnInit {
     this.isCheckingSession.set(false);
   }
 
-  private handleAppError(error: any, userFriendlyMessage: string) {
+  private handleAppError(error: any, userFriendlyMessage?: string) {
     console.error('Application Error:', error);
-    const setupSQL = this.getSetupSQL();
+    const instructions = this.getSetupInstructions();
     const errorMessage = typeof error === 'string' ? error : error.message;
+    
+    // Detect if the error indicates an incomplete database setup.
+    const isSetupError = errorMessage?.includes('does not exist') ||
+                         errorMessage?.includes('Could not find the table') ||
+                         errorMessage?.includes('setup is incomplete');
 
-    if (errorMessage?.includes('does not exist') || errorMessage?.includes('Could not find the table')) {
-      this.appError.set(userFriendlyMessage);
-      this.setupSqlScript.set(setupSQL);
-      console.info('--- SUPABASE SETUP SCRIPT --- \nPlease run the following SQL in your Supabase project\'s SQL Editor to create the necessary tables, storage bucket, and security policies:\n\n' + setupSQL);
+    if (isSetupError) {
+       this.appError.set(userFriendlyMessage || 'Application setup is incomplete.');
+       this.setupInstructions.set(instructions);
+       console.info('--- SUPABASE SETUP REQUIRED --- \nPlease follow the on-screen instructions to set up the database.');
     } else if (errorMessage?.includes('new row violates row-level security policy')) {
-      this.appError.set(`Database permission error. Your user role may not have the required permissions to perform this action. Please contact your administrator.`);
+       this.appError.set(`Database permission error. Your user role may not have the required permissions to perform this action. Please contact your administrator.`);
     } else if (errorMessage?.includes('insufficient privileges')) {
-      this.appError.set(`Security Error: Your Supabase API key lacks the required permissions for user management. To enable this feature, you must use the 'service_role' key. Warning: Do not expose this key in a production browser environment. This feature is intended for admin panels running in a secure server environment.`);
+       this.appError.set(`Security Error: Your Supabase API key lacks the required permissions for user management. To enable this feature, you must use the 'service_role' key. Warning: Do not expose this key in a production browser environment. This feature is intended for admin panels running in a secure server environment.`);
     } else {
-      this.appError.set(`An unexpected error occurred. Please check the developer console for more details. The error was: ${errorMessage}`);
+       this.appError.set(`An unexpected error occurred. Please check the developer console for more details. The error was: ${errorMessage}`);
     }
   }
 
@@ -235,7 +238,7 @@ export class AppComponent implements OnInit {
     try {
       await this.wayleaveService.initializeData();
     } catch (error: any) {
-      this.handleAppError(error, 'Your database is missing the required tables or columns.');
+      this.handleAppError(error, 'Your database is missing required tables or functions.');
     } finally {
       this.isAppLoading.set(false);
     }
@@ -254,12 +257,11 @@ export class AppComponent implements OnInit {
     this.isCreatingWayleave.set(true);
     try {
       await this.wayleaveService.addRecord(record.wayleaveNumber, record.attachment);
-      this.isNewWayleaveModalOpen.set(false);
-      this.toastService.success('Wayleave created successfully');
     } catch (error: any) {
-      this.toastService.error(`Error creating record: ${error.message}`);
+        alert(`Error creating record: ${error.message}`);
     } finally {
       this.isCreatingWayleave.set(false);
+      this.isNewWayleaveModalOpen.set(false);
     }
   }
 
@@ -267,60 +269,47 @@ export class AppComponent implements OnInit {
     this.isRefreshing.set(true);
     try {
       await this.wayleaveService.initializeData();
-      this.toastService.success('Data refreshed');
     } catch (error: any) {
-      this.toastService.error(`Failed to refresh data: ${error.message}`);
+      alert(`Failed to refresh data: ${error.message}`);
     } finally {
       this.isRefreshing.set(false);
     }
   }
 
   async handleLogout() {
-    // The service now handles/suppresses logout errors internally
-    await this.authService.signOut();
-  }
-
-  async copySetupSql(): Promise<void> {
-    const script = this.setupSqlScript();
-    if (!script) return;
     try {
-      await navigator.clipboard.writeText(script);
-      this.copySuccess.set(true);
-      setTimeout(() => this.copySuccess.set(false), 2500);
+      await this.authService.signOut();
+    } catch (error: any) {
+      alert(`Error signing out: ${error.message}`);
+    }
+  }
+  
+  async copyToClipboard(content: string, type: 'sqlScript'): Promise<void> {
+    if (!content) return;
+    try {
+        await navigator.clipboard.writeText(content);
+        this.copySuccess.set(type);
+        setTimeout(() => this.copySuccess.set(null), 2500);
     } catch (err) {
-      console.error('Failed to copy text: ', err);
-      this.toastService.error('Failed to copy script. Please copy it manually.');
+        console.error('Failed to copy text: ', err);
+        alert('Failed to copy. Please copy manually from the text area.');
     }
   }
 
-  private getSetupSQL(): string {
-    return `-- Wayleave Management System Setup Script
--- This script creates necessary tables, roles, and security policies. It is idempotent.
+  private getSetupInstructions(): { sqlScript: string } {
+    const sqlScript = `-- Wayleave Management System Setup Script
+-- This script creates tables, roles, and security policies for the application.
 
--- 1. Manage the user profiles table and its columns for migration
--- First, ensure the table exists.
+-- 1. Manage the user profiles table
 CREATE TABLE IF NOT EXISTS public.users (
   id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
   role TEXT DEFAULT 'Unassigned',
   status TEXT DEFAULT 'pending'
 );
-
--- Safely add the 'created_at' column. Add it with a temporary default value and NOT NULL
--- constraint to prevent errors on existing databases.
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-
--- Backfill 'created_at' with the correct signup time from the auth.users table.
--- This will overwrite the temporary default value with the accurate historical data.
-UPDATE public.users u
-SET created_at = a.created_at
-FROM auth.users a
-WHERE u.id = a.id;
-
--- After backfilling, remove the temporary default. The handle_new_user trigger below
--- will be responsible for providing this value for all new sign-ups.
+UPDATE public.users u SET created_at = a.created_at FROM auth.users a WHERE u.id = a.id;
 ALTER TABLE public.users ALTER COLUMN created_at DROP DEFAULT;
-
 
 -- 2. Create the table for wayleave records
 CREATE TABLE IF NOT EXISTS public.wayleave_records (
@@ -337,121 +326,86 @@ CREATE TABLE IF NOT EXISTS public.wayleave_records (
   approved_attachment_size BIGINT
 );
 
--- 3. Create a bucket for storing file attachments.
+-- 3. Create storage bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('wayleave-attachments', 'wayleave-attachments', FALSE) -- Set to FALSE for better security
+VALUES ('wayleave-attachments', 'wayleave-attachments', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
--- 4. Helper function to get the current user's role from the public.users table.
+-- 4. Helper function for RLS
 CREATE OR REPLACE FUNCTION get_current_user_role()
 RETURNS TEXT AS $$
-DECLARE
-  user_role TEXT;
+DECLARE user_role TEXT;
 BEGIN
-  -- In Codium environments, a void auth.uid() can cause errors.
-  -- This handles the case where it might not be available during a check.
-  IF auth.uid() IS NULL THEN
-    RETURN NULL;
-  END IF;
+  IF auth.uid() IS NULL THEN RETURN NULL; END IF;
   SELECT role INTO user_role FROM public.users WHERE id = auth.uid();
   RETURN user_role;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-
--- 5. Set up the trigger to create a user profile when a new user signs up.
--- This function will be called by the trigger.
+-- 5. Trigger to create user profile on sign-up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
-DECLARE
-  new_role TEXT;
-  new_status TEXT;
+DECLARE new_role TEXT; new_status TEXT;
 BEGIN
-  -- Check if the new user is the designated admin and automatically activate them.
-  -- Use lower() to make the check case-insensitive.
   IF lower(new.email) = 'mohamed.rajab@ewa.bh' THEN
-    new_role := 'Admin';
-    new_status := 'active';
+    new_role := 'Admin'; new_status := 'active';
   ELSE
-    new_role := 'Unassigned';
-    new_status := 'pending';
+    new_role := 'Unassigned'; new_status := 'pending';
   END IF;
-
   INSERT INTO public.users (id, email, created_at, role, status)
   VALUES (new.id, new.email, new.created_at, new_role, new_status);
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Drop the old trigger if it exists to avoid conflicts
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
--- Create the trigger
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
-
--- 6. Enable Row Level Security (RLS) on all tables
+-- 6. Enable RLS and define policies
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wayleave_records ENABLE ROW LEVEL SECURITY;
-
-
--- 7. Define RLS Policies for public.users table
 DROP POLICY IF EXISTS "Allow users to read their own profile" ON public.users;
-CREATE POLICY "Allow users to read their own profile" ON public.users
-FOR SELECT TO authenticated USING (auth.uid() = id);
-
+CREATE POLICY "Allow users to read their own profile" ON public.users FOR SELECT TO authenticated USING (auth.uid() = id);
 DROP POLICY IF EXISTS "Allow admins to manage all profiles" ON public.users;
-CREATE POLICY "Allow admins to manage all profiles" ON public.users
-FOR ALL TO authenticated USING (get_current_user_role() = 'Admin')
-WITH CHECK (get_current_user_role() = 'Admin');
-
+CREATE POLICY "Allow admins to manage all profiles" ON public.users FOR ALL TO authenticated USING (get_current_user_role() = 'Admin') WITH CHECK (get_current_user_role() = 'Admin');
 DROP POLICY IF EXISTS "Allow admins to delete users" ON public.users;
-CREATE POLICY "Allow admins to delete users" ON public.users
-FOR DELETE TO authenticated USING (get_current_user_role() = 'Admin');
-
-
--- 8. Define RLS Policies for public.wayleave_records table
+CREATE POLICY "Allow admins to delete users" ON public.users FOR DELETE TO authenticated USING (get_current_user_role() = 'Admin');
 DROP POLICY IF EXISTS "Allow authenticated read access" ON public.wayleave_records;
-CREATE POLICY "Allow authenticated read access" ON public.wayleave_records
-FOR SELECT TO authenticated USING (TRUE);
-
+CREATE POLICY "Allow authenticated read access" ON public.wayleave_records FOR SELECT TO authenticated USING (TRUE);
 DROP POLICY IF EXISTS "Allow PLANNING and Admin to insert" ON public.wayleave_records;
-CREATE POLICY "Allow PLANNING and Admin to insert" ON public.wayleave_records
-FOR INSERT TO authenticated WITH CHECK ( (get_current_user_role() IN ('PLANNING', 'Admin')) );
-
+CREATE POLICY "Allow PLANNING and Admin to insert" ON public.wayleave_records FOR INSERT TO authenticated WITH CHECK ( (get_current_user_role() IN ('PLANNING', 'Admin')) );
 DROP POLICY IF EXISTS "Allow role-based updates" ON public.wayleave_records;
-CREATE POLICY "Allow role-based updates" ON public.wayleave_records
-FOR UPDATE TO authenticated USING (
-  (get_current_user_role() = 'TSS' AND status IN ('Waiting for TSS Action', 'Sent to MOW')) OR
-  (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR
-  (get_current_user_role() = 'Admin')
-) WITH CHECK (
-  (get_current_user_role() = 'TSS' AND status IN ('Waiting for TSS Action', 'Sent to MOW')) OR
-  (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR
-  (get_current_user_role() = 'Admin')
-);
-
+CREATE POLICY "Allow role-based updates" ON public.wayleave_records FOR UPDATE TO authenticated USING ( (get_current_user_role() = 'TSS' AND status IN ('Waiting for TSS Action', 'Sent to MOW')) OR (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR (get_current_user_role() = 'Admin') ) WITH CHECK ( (get_current_user_role() = 'TSS' AND status IN ('Waiting for TSS Action', 'Sent to MOW')) OR (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR (get_current_user_role() = 'Admin') );
 DROP POLICY IF EXISTS "Allow Admin to delete" ON public.wayleave_records;
-CREATE POLICY "Allow Admin to delete" ON public.wayleave_records
-FOR DELETE TO authenticated USING ( (get_current_user_role() = 'Admin') );
-
-
--- 9. Define RLS Policies for storage.objects
+CREATE POLICY "Allow Admin to delete" ON public.wayleave_records FOR DELETE TO authenticated USING ( (get_current_user_role() = 'Admin') );
 DROP POLICY IF EXISTS "Allow authenticated select access on attachments" ON storage.objects;
-CREATE POLICY "Allow authenticated select access on attachments" ON storage.objects
-FOR SELECT TO authenticated USING (bucket_id = 'wayleave-attachments');
-
+CREATE POLICY "Allow authenticated select access on attachments" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'wayleave-attachments');
 DROP POLICY IF EXISTS "Allow PLANNING and Admin to insert attachments" ON storage.objects;
-CREATE POLICY "Allow PLANNING and Admin to insert attachments" ON storage.objects
-FOR INSERT TO authenticated WITH CHECK (
-  bucket_id = 'wayleave-attachments' AND
-  (get_current_user_role() IN ('PLANNING', 'Admin'))
-);
+CREATE POLICY "Allow PLANNING and Admin to insert attachments" ON storage.objects FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'wayleave-attachments' AND (get_current_user_role() IN ('PLANNING', 'Admin')) );
 
--- Clean up old, unused function
-DROP FUNCTION IF EXISTS get_my_role();
+-- 7. Add a setup verification function for the client application
+CREATE OR REPLACE FUNCTION check_setup_status()
+RETURNS jsonb AS $$
+DECLARE
+  missing_items text[] := ARRAY[]::text[];
+BEGIN
+  -- Check for tables
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wayleave_records') THEN
+    missing_items := array_append(missing_items, 'table: wayleave_records');
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
+    missing_items := array_append(missing_items, 'table: users');
+  END IF;
+
+  IF array_length(missing_items, 1) > 0 THEN
+    RETURN jsonb_build_object('is_complete', false, 'missing', missing_items);
+  ELSE
+    RETURN jsonb_build_object('is_complete', true);
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
 `;
+    return { sqlScript };
   }
 }

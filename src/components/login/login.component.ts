@@ -38,13 +38,13 @@ import { SpinnerComponent } from '../spinner/spinner.component';
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
             <div class="mt-1">
-              <input type="email" id="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+              <input type="email" id="email" name="email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
           </div>
           <div>
             <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
             <div class="mt-1">
-              <input type="password" id="password" name="password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+              <input type="password" id="password" name="password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
           </div>
           
@@ -77,19 +77,19 @@ import { SpinnerComponent } from '../spinner/spinner.component';
           <div>
             <label for="reg-email" class="block text-sm font-medium text-gray-700">Email Address</label>
             <div class="mt-1">
-              <input type="email" id="reg-email" name="reg-email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+              <input type="email" id="reg-email" name="reg-email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="user@ewa.bh" required class="block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
           </div>
           <div>
             <label for="reg-password" class="block text-sm font-medium text-gray-700">Password</label>
             <div class="mt-1">
-              <input type="password" id="reg-password" name="reg-password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+              <input type="password" id="reg-password" name="reg-password" [ngModel]="password()" (ngModelChange)="password.set($event)" required class="block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
           </div>
            <div>
             <label for="confirm-password" class="block text-sm font-medium text-gray-700">Confirm Password</label>
             <div class="mt-1">
-              <input type="password" id="confirm-password" name="confirm-password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+              <input type="password" id="confirm-password" name="confirm-password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" required class="block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
           </div>
           
