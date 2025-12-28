@@ -269,13 +269,8 @@ export class AppComponent implements OnInit {
   }
 
   async handleLogout() {
-    try {
-      await this.authService.signOut();
-    } catch (error: any) {
-      if (error.message !== 'Auth session missing!') {
-        alert(`Error signing out: ${error.message}`);
-      }
-    }
+    // The service now handles/suppresses logout errors internally
+    await this.authService.signOut();
   }
 
   async copySetupSql(): Promise<void> {
