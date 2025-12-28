@@ -157,7 +157,7 @@ export class AppComponent implements OnInit {
 
   session = this.authService.session;
   currentUser = this.wayleaveService.currentUser;
-  
+
   notifications = computed(() => {
     const user = this.currentUser();
     if (!user) return [];
@@ -166,7 +166,7 @@ export class AppComponent implements OnInit {
       if (user === 'EDD' && record.status === 'Sent to Planning (EDD)') return true;
       // Admins see all notifications
       if (user === 'Admin') {
-         if (record.status === 'Waiting for TSS Action' || record.status === 'Sent to Planning (EDD)') return true;
+        if (record.status === 'Waiting for TSS Action' || record.status === 'Sent to Planning (EDD)') return true;
       }
       return false;
     });
@@ -196,7 +196,7 @@ export class AppComponent implements OnInit {
 
   async ngOnInit() {
     // This resolves when the initial session check is done.
-    await this.authService.isInitialized; 
+    await this.authService.isInitialized;
 
     // After initialization, check if a critical error occurred (e.g., schema mismatch).
     const initError = this.authService.initializationError();
@@ -212,17 +212,17 @@ export class AppComponent implements OnInit {
     console.error('Application Error:', error);
     const setupSQL = this.getSetupSQL();
     const errorMessage = typeof error === 'string' ? error : error.message;
-    
+
     if (errorMessage?.includes('does not exist') || errorMessage?.includes('Could not find the table')) {
-       this.appError.set(userFriendlyMessage);
-       this.setupSqlScript.set(setupSQL);
-       console.info('--- SUPABASE SETUP SCRIPT --- \nPlease run the following SQL in your Supabase project\'s SQL Editor to create the necessary tables, storage bucket, and security policies:\n\n' + setupSQL);
+      this.appError.set(userFriendlyMessage);
+      this.setupSqlScript.set(setupSQL);
+      console.info('--- SUPABASE SETUP SCRIPT --- \nPlease run the following SQL in your Supabase project\'s SQL Editor to create the necessary tables, storage bucket, and security policies:\n\n' + setupSQL);
     } else if (errorMessage?.includes('new row violates row-level security policy')) {
-       this.appError.set(`Database permission error. Your user role may not have the required permissions to perform this action. Please contact your administrator.`);
+      this.appError.set(`Database permission error. Your user role may not have the required permissions to perform this action. Please contact your administrator.`);
     } else if (errorMessage?.includes('insufficient privileges')) {
-       this.appError.set(`Security Error: Your Supabase API key lacks the required permissions for user management. To enable this feature, you must use the 'service_role' key. Warning: Do not expose this key in a production browser environment. This feature is intended for admin panels running in a secure server environment.`);
+      this.appError.set(`Security Error: Your Supabase API key lacks the required permissions for user management. To enable this feature, you must use the 'service_role' key. Warning: Do not expose this key in a production browser environment. This feature is intended for admin panels running in a secure server environment.`);
     } else {
-       this.appError.set(`An unexpected error occurred. Please check the developer console for more details. The error was: ${errorMessage}`);
+      this.appError.set(`An unexpected error occurred. Please check the developer console for more details. The error was: ${errorMessage}`);
     }
   }
 
@@ -251,7 +251,7 @@ export class AppComponent implements OnInit {
       await this.wayleaveService.addRecord(record.wayleaveNumber, record.attachment);
       this.isNewWayleaveModalOpen.set(false);
     } catch (error: any) {
-        alert(`Error creating record: ${error.message}`);
+      alert(`Error creating record: ${error.message}`);
     } finally {
       this.isCreatingWayleave.set(false);
     }
@@ -272,20 +272,22 @@ export class AppComponent implements OnInit {
     try {
       await this.authService.signOut();
     } catch (error: any) {
-      alert(`Error signing out: ${error.message}`);
+      if (error.message !== 'Auth session missing!') {
+        alert(`Error signing out: ${error.message}`);
+      }
     }
   }
-  
+
   async copySetupSql(): Promise<void> {
     const script = this.setupSqlScript();
     if (!script) return;
     try {
-        await navigator.clipboard.writeText(script);
-        this.copySuccess.set(true);
-        setTimeout(() => this.copySuccess.set(false), 2500);
+      await navigator.clipboard.writeText(script);
+      this.copySuccess.set(true);
+      setTimeout(() => this.copySuccess.set(false), 2500);
     } catch (err) {
-        console.error('Failed to copy text: ', err);
-        alert('Failed to copy script. Please copy it manually from the text area.');
+      console.error('Failed to copy text: ', err);
+      alert('Failed to copy script. Please copy it manually from the text area.');
     }
   }
 

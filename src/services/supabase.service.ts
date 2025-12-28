@@ -56,7 +56,8 @@ export class SupabaseService {
 
   async signOut() {
     const { error } = await this.supabase.auth.signOut();
-    if (error) throw error;
+    // Ignore "Auth session missing!" error as it implies we are already signed out
+    if (error && error.message !== 'Auth session missing!') throw error;
   }
 
   async getSession(): Promise<Session | null> {
