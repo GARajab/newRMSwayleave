@@ -1,5 +1,5 @@
 
-import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WayleaveRecord } from '../../models/wayleave.model';
@@ -48,7 +48,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EditWayleaveFormComponent {
-  record = input.required<WayleaveRecord>();
+  record = input<WayleaveRecord | null>(null);
   isLoading = input<boolean>(false);
   formSubmitted = output<{ recordId: number, wayleaveNumber: string }>();
   formCancelled = output<void>();
@@ -56,10 +56,14 @@ export class EditWayleaveFormComponent {
   editableWayleaveNumber = signal('');
 
   constructor() {
-    const record = this.record();
-    if (record) {
-      this.editableWayleaveNumber.set(record.wayleaveNumber);
-    }
+    effect(() => {
+      const record = this.record();
+      if (record) {
+        this.editableWayleaveNumber.set(record.wayleaveNumber);
+      } else {
+        this.editableWayleaveNumber.set('');
+      }
+    });
   }
 
   submitForm(): void {
