@@ -15,10 +15,7 @@ type AdminView = 'dashboard' | 'users';
   <aside class="w-64 bg-white dark:bg-slate-800/50 p-4 border-r border-slate-200 dark:border-slate-700/50 h-[calc(100vh-4rem)] sticky top-16">
     <nav class="flex flex-col space-y-2">
       <button (click)="activeView.set('dashboard')" 
-              [class.bg-sky-100]="activeView() === 'dashboard'"
-              [class.dark:bg-sky-500/10]="activeView() === 'dashboard'"
-              [class.text-sky-600]="activeView() === 'dashboard'"
-              [class.dark:text-sky-400]="activeView() === 'dashboard'"
+              [ngClass]="{'bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400': activeView() === 'dashboard'}"
               class="flex items-center space-x-3 p-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -27,10 +24,7 @@ type AdminView = 'dashboard' | 'users';
       </button>
 
       <button (click)="activeView.set('users')" 
-              [class.bg-sky-100]="activeView() === 'users'"
-              [class.dark:bg-sky-500/10]="activeView() === 'users'"
-              [class.text-sky-600]="activeView() === 'users'"
-              [class.dark:text-sky-400]="activeView() === 'users'"
+              [ngClass]="{'bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400': activeView() === 'users'}"
               class="flex items-center space-x-3 p-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21v-1a6 6 0 00-1-3.72a4 4 0 00-3-3.263l-1-1c-1.12-1.12-1.83-2.64-1.83-4.31a4 4 0 116.63-3.26l1 .5" />
