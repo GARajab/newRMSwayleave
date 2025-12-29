@@ -26,7 +26,7 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200/75">
-        @for (record of records(); track record.id; let i = $index) {
+        @for (record of filteredRecords(); track record.id; let i = $index) {
           @let lastHistory = record.history[record.history.length - 1];
           @let availableActions = getActionsForRecord(record.status, currentUser());
           @let styles = statusStyles()[record.status];
@@ -98,7 +98,9 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
           </tr>
         } @empty {
           <tr>
-            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">No wayleave records found.</td>
+            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
+               {{ wayleaveService.searchTerm() ? 'No records match your search.' : 'No wayleave records found.' }}
+            </td>
           </tr>
         }
       </tbody>
@@ -131,7 +133,7 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
                 name="newStatus" 
                 [ngModel]="newStatusForAdmin()"
                 (ngModelChange)="onAdminStatusChange($event)"
-                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 bg-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                 @for(status of allStatuses; track status) {
                     <option [value]="status">{{ status }}</option>
                 }
@@ -216,9 +218,19 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
 export class WayleaveListComponent {
   wayleaveService = inject(WayleaveService);
   
-  records = this.wayleaveService.records;
   currentUser = this.wayleaveService.currentUser;
   downloadingPaths = signal<string[]>([]);
+
+  filteredRecords = computed(() => {
+    const records = this.wayleaveService.records();
+    const term = this.wayleaveService.searchTerm().toLowerCase();
+    if (!term) {
+      return records;
+    }
+    return records.filter(record => 
+      record.wayleaveNumber.toLowerCase().includes(term)
+    );
+  });
 
   // State for standard user update flow
   isUpdateModalOpen = signal(false);

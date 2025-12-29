@@ -11,6 +11,7 @@ export class WayleaveService {
 
   currentUser = computed(() => this.authService.currentUserRole());
   records = signal<WayleaveRecord[]>([]);
+  searchTerm = signal('');
 
   startRealtimeUpdates(): void {
     this.supabaseService.subscribeToChanges(

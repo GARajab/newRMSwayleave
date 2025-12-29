@@ -1,5 +1,5 @@
 
-import { Component, ChangeDetectionStrategy, input, output, signal, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WayleaveRecord } from '../../models/wayleave.model';
@@ -20,7 +20,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
         [ngModel]="editableWayleaveNumber()" 
         (ngModelChange)="editableWayleaveNumber.set($event)" 
         required 
-        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        class="block w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
     </div>
   </div>
 
@@ -48,7 +48,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EditWayleaveFormComponent {
-  record = input<WayleaveRecord | null>(null);
+  record = input.required<WayleaveRecord>();
   isLoading = input<boolean>(false);
   formSubmitted = output<{ recordId: number, wayleaveNumber: string }>();
   formCancelled = output<void>();
@@ -56,14 +56,10 @@ export class EditWayleaveFormComponent {
   editableWayleaveNumber = signal('');
 
   constructor() {
-    effect(() => {
-      const record = this.record();
-      if (record) {
-        this.editableWayleaveNumber.set(record.wayleaveNumber);
-      } else {
-        this.editableWayleaveNumber.set('');
-      }
-    });
+    const record = this.record();
+    if (record) {
+      this.editableWayleaveNumber.set(record.wayleaveNumber);
+    }
   }
 
   submitForm(): void {

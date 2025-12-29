@@ -158,7 +158,9 @@ export class LoginComponent {
       console.error('Login failed:', error.message, error);
       const errorMsg = error.message?.toLowerCase() || '';
       
-      if (errorMsg.includes('column') && errorMsg.includes('does not exist')) {
+      if (error instanceof TypeError && errorMsg.includes('failed to fetch')) {
+        this.errorMessage.set('A network error occurred. Please check your connection. Important: If this is a new deployment, ensure the site URL (e.g., your Netlify URL) has been added to your Supabase project\'s authentication settings.');
+      } else if (errorMsg.includes('column') && errorMsg.includes('does not exist')) {
         this.errorMessage.set('Database schema is out of date. Please ask an administrator to run the latest setup script to fix the issue.');
       } else if (errorMsg.includes('table') && errorMsg.includes('does not exist')) {
         this.errorMessage.set('Database setup incomplete: A required table is missing. Please ask an administrator to run the setup script.');

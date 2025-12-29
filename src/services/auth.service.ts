@@ -21,76 +21,65 @@ export class AuthService {
         this.resolveInitialized = resolve;
     });
 
-    this.supabaseService.getSession().then(async session => {
-      try {
-        // For the very first load, perform a full session evaluation.
-        await this.setSessionAndProfile(session);
-      } catch (error: any) {
-        // Gracefully handle schema errors during initial load
-        if (error.message?.includes('does not exist')) {
-          this.initializationError.set(error.message);
-        } else {
-          this.initializationError.set('An unexpected error occurred while initializing the session.');
-          console.error("AuthService Initialization Error:", error);
-        }
-        // Ensure no partial session state remains on error
-        this.session.set(null);
-        this.currentUserRole.set(null);
-      } finally {
-        // Always resolve the promise to prevent the app from getting stuck on the initial loading spinner.
-        this.resolveInitialized();
-      }
-    });
+    let initialAuthEventProcessed = false;
 
     this.supabaseService.onAuthStateChange(async (event, session) => {
-      // The signIn() method is the single source of truth for setting the session
-      // and user role upon a successful login. It provides an authoritative profile.
-      // To prevent a race condition where this listener might fetch a stale profile
-      // from the database right after login, we will completely ignore the SIGNED_IN event.
+      // signIn() provides the authoritative profile, so we can ignore the SIGNED_IN event
+      // to prevent a race condition where this listener might fetch a stale profile.
       if (event === 'SIGNED_IN') {
         return;
       }
-      
-      // A TOKEN_REFRESHED event means the user is the same, but they have a new token.
-      // We update the session object to reflect this new token, but crucially
-      // preserve the existing user role to avoid incorrect UI shifts.
+
+      // TOKEN_REFRESHED means the user is the same, just with a new token.
+      // We only update the session object to avoid UI shifts.
       if (event === 'TOKEN_REFRESHED' && session) {
-        this.session.set(session); // Only update the session, not the role.
+        this.session.set(session);
         return;
       }
 
-      // For all other events (INITIAL_SESSION, SIGNED_OUT, USER_DELETED, etc.),
-      // we perform a full session and profile evaluation.
+      // For INITIAL_SESSION, SIGNED_OUT, and other events, we do a full validation.
       try {
         await this.setSessionAndProfile(session);
-      } catch(error: any) {
-        console.error('Error during auth state change, signing out.', error);
-        // If profile becomes invalid, force a sign-out.
-        // The signOut call will trigger this listener again with a null session, correctly clearing the UI.
+      } catch (error: any) {
+        console.error('Error during auth state change, forcing sign out.', error);
+        // Catch errors like database being down or RLS issues during profile fetch.
+        // If there's an error, we can't trust the state, so sign out.
+        if (error.message?.includes('does not exist') && !initialAuthEventProcessed) {
+            // This is a critical setup error on first load.
+            this.initializationError.set(error.message);
+        }
         await this.supabaseService.signOut();
+      } finally {
+        // The first auth event (typically INITIAL_SESSION) marks the service as initialized.
+        if (!initialAuthEventProcessed) {
+            initialAuthEventProcessed = true;
+            this.resolveInitialized();
+        }
       }
     });
   }
   
   private async setSessionAndProfile(session: Session | null, authoritativeProfile?: UserProfile | null) {
-      if (session) {
-        // If an authoritative profile is provided (from signIn), it's the source of truth.
-        // Otherwise, we must fetch it (for INITIAL_SESSION or other events).
-        const profile = authoritativeProfile || await this.supabaseService.getUserProfile(session.user.id);
-
-        if (profile?.status === 'active' && profile.role && profile.role !== 'Unassigned') {
-            this.session.set(session);
-            this.currentUserRole.set(profile.role);
-        } else {
-            // User is pending, not found, unassigned, or otherwise invalid. Ensure they are signed out.
-            await this.supabaseService.signOut();
-            this.session.set(null);
-            this.currentUserRole.set(null);
-        }
-      } else {
+      if (!session) {
         // The session is null (user has signed out or session expired). Clear all state.
         this.session.set(null);
         this.currentUserRole.set(null);
+        return;
+      }
+
+      // We have a session, so we need to validate the user's profile.
+      const profile = authoritativeProfile || await this.supabaseService.getUserProfile(session.user.id);
+
+      if (profile?.status === 'active' && profile.role && profile.role !== 'Unassigned') {
+        // User has a valid session and a valid, active profile. Set the state.
+        this.session.set(session);
+        this.currentUserRole.set(profile.role);
+      } else {
+        // The user's profile is invalid (pending, unassigned, or missing).
+        // A valid session with an invalid profile is not a permitted state.
+        // We sign them out, which will trigger onAuthStateChange again with a null session.
+        // That subsequent event will handle clearing the application state via the `!session` block above.
+        await this.supabaseService.signOut();
       }
   }
 

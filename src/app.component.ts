@@ -89,7 +89,8 @@ import { AdminPortalComponent } from './components/admin-portal/admin-portal.com
     } @else {
       <main class="p-4 sm:p-6 lg:p-8 animate-fade-in">
         <div class="max-w-7xl mx-auto">
-          <div class="flex justify-between items-center mb-6">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <!-- Left side: Title and Refresh -->
             <div class="flex items-center gap-4">
               <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
                   Wayleave Dashboard
@@ -105,15 +106,30 @@ import { AdminPortalComponent } from './components/admin-portal/admin-portal.com
                 }
               </button>
             </div>
+             <!-- Right side: Search and Actions -->
             <div class="flex items-center gap-4">
-              @if (currentUser() === 'PLANNING') {
-                <button (click)="openNewWayleaveModal()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150 hover:scale-105 active:scale-100">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                  </svg>
-                  <span>New Wayleave</span>
-                </button>
-              }
+                <div class="relative w-64">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <input 
+                        type="search"
+                        #searchInput
+                        (input)="onSearchTermChange(searchInput.value)"
+                        [value]="wayleaveService.searchTerm()"
+                        placeholder="Search by Wayleave #" 
+                        class="block w-full pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+                @if (currentUser() === 'PLANNING') {
+                    <button (click)="openNewWayleaveModal()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-150 hover:scale-105 active:scale-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span>New Wayleave</span>
+                    </button>
+                }
             </div>
           </div>
           <app-wayleave-list></app-wayleave-list>
@@ -284,6 +300,10 @@ export class AppComponent implements OnInit {
     }
   }
   
+  onSearchTermChange(term: string): void {
+    this.wayleaveService.searchTerm.set(term);
+  }
+  
   async copyToClipboard(content: string, type: 'sqlScript'): Promise<void> {
     if (!content) return;
     try {
@@ -345,15 +365,27 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 5. Trigger to create user profile on sign-up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
-DECLARE new_role TEXT; new_status TEXT;
+DECLARE
+  new_role TEXT := 'Unassigned';
+  new_status TEXT := 'pending';
 BEGIN
-  IF lower(new.email) = 'mohamed.rajab@ewa.bh' THEN
-    new_role := 'Admin'; new_status := 'active';
-  ELSE
-    new_role := 'Unassigned'; new_status := 'pending';
+  -- Defensive check: Do not create a profile if one already exists for this user ID.
+  IF EXISTS (SELECT 1 FROM public.users WHERE id = new.id) THEN
+    RETURN new;
   END IF;
+
+  -- Default status for all new users is 'pending' and role is 'Unassigned'.
+  -- This directly implements the requirement that new users are not active by default.
+
+  -- Special case: Assign 'Admin' role and 'active' status for the predefined admin email.
+  IF lower(new.email) = 'mohamed.rajab@ewa.bh' THEN
+    new_role := 'Admin';
+    new_status := 'active';
+  END IF;
+  
   INSERT INTO public.users (id, email, created_at, role, status)
   VALUES (new.id, new.email, new.created_at, new_role, new_status);
+  
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
