@@ -51,9 +51,9 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminDashboardComponent implements OnInit {
-  private wayleaveService = inject(WayleaveService);
+  public wayleaveService = inject(WayleaveService);
   private authService = inject(AuthService);
-  
+
   allRecords = this.wayleaveService.records;
   users = signal<UserProfile[]>([]);
   isLoadingUsers = signal(true);
