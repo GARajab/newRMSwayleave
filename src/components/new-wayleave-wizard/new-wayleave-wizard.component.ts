@@ -1,5 +1,5 @@
 
-import { Component, ChangeDetectionStrategy, output, signal, input, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, signal, input, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WayleaveRecord } from '../../models/wayleave.model';
@@ -8,6 +8,17 @@ import { SpinnerComponent } from '../spinner/spinner.component';
 @Component({
   selector: 'app-new-wayleave-wizard',
   imports: [CommonModule, FormsModule, SpinnerComponent],
+  styles: [`
+    @keyframes progress-stripes {
+      from { background-position: 1rem 0; }
+      to { background-position: 0 0; }
+    }
+    .animate-stripes {
+      background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
+      background-size: 1rem 1rem;
+      animation: progress-stripes 1s linear infinite;
+    }
+  `],
   template: `
     <div class="flex flex-col space-y-6 relative">
       <!-- RPDD Confirmation Overlay -->
@@ -39,8 +50,8 @@ import { SpinnerComponent } from '../spinner/spinner.component';
           <span class="text-base font-medium text-indigo-700">Step {{ currentStep() }} of 2</span>
           <span class="text-sm font-medium text-indigo-700">{{ progressText() }}</span>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-2.5">
-          <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" [style.width.%]="progressPercentage()"></div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+          <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000 ease-out animate-stripes" [style.width.%]="progressWidth()"></div>
         </div>
       </div>
       
@@ -146,6 +157,23 @@ export class NewWayleaveWizardComponent {
   rpddError = signal<string | null>(null);
   isDragging = signal(false);
 
+  // New signal for the animated width of the progress bar
+  progressWidth = signal(0);
+
+  constructor() {
+    // Effect to update progress width with a slight delay for animation
+    effect(() => {
+        const step = this.currentStep();
+        const target = (step / 2) * 100;
+        
+        // Timeout allows the DOM to render the initial state (e.g. 0% or previous step)
+        // before applying the new width, ensuring the CSS transition triggers visibly.
+        setTimeout(() => {
+            this.progressWidth.set(target);
+        }, 100);
+    });
+  }
+
   isStepValid = computed(() => {
     switch(this.currentStep()) {
       case 1: return this.wayleaveNumber().trim().length > 0;
@@ -154,6 +182,7 @@ export class NewWayleaveWizardComponent {
     }
   });
   
+  // Note: This computed is used for the text display "Step 1 of 2", not the width itself anymore.
   progressPercentage = computed(() => {
     return (this.currentStep() / 2) * 100;
   });
