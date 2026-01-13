@@ -54,8 +54,8 @@ export class WayleaveService {
     await this.supabaseService.addRecord(wayleaveNumber, attachment, actor);
   }
 
-  async updateStatus(recordId: number, newStatus: WayleaveStatus, actor: UserRole, approvedAttachmentFile?: File): Promise<void> {
-    await this.supabaseService.updateStatus(recordId, newStatus, actor, approvedAttachmentFile);
+  async updateStatus(recordId: number, newStatus: WayleaveStatus, actor: UserRole, details: { approvedAttachmentFile?: File; justification?: string }): Promise<void> {
+    await this.supabaseService.updateStatus(recordId, newStatus, actor, details);
   }
 
   async updateRecordDetails(recordId: number, wayleaveNumber: string): Promise<void> {
@@ -69,5 +69,17 @@ export class WayleaveService {
 
   async getAttachmentDownloadUrl(path: string): Promise<string> {
     return this.supabaseService.getAttachmentUrl(path);
+  }
+
+  async checkWayleaveNumberExists(wayleaveNumber: string): Promise<boolean> {
+    return this.supabaseService.checkWayleaveNumberExists(wayleaveNumber);
+  }
+
+  async resubmitRecord(recordId: number, newAttachment: File): Promise<void> {
+    const actor = this.currentUser();
+    if (!actor) {
+      throw new Error("User is not authenticated or has no role assigned.");
+    }
+    await this.supabaseService.resubmitRecord(recordId, newAttachment, actor);
   }
 }

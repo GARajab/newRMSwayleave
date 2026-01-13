@@ -28,14 +28,22 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
       <tbody class="bg-white divide-y divide-gray-200/75">
         @for (record of filteredRecords(); track record.id; let i = $index) {
           @let lastHistory = record.history[record.history.length - 1];
-          @let availableActions = getActionsForRecord(record.status, currentUser());
+          @let availableActions = getActionsForRecord(record.status, currentUser(), record);
           @let styles = statusStyles()[record.status];
+          @let rejectionReason = getRejectionJustification(record);
           <tr class="animate-fade-in-up hover:bg-gray-50/50 transition-colors duration-150" [style.animation-delay]="i * 50 + 'ms'">
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ record.wayleaveNumber }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm">
-              <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium" [class]="styles.container">
-                <div class="h-2 w-2 rounded-full" [class]="styles.dot"></div>
-                <span>{{ record.status }}</span>
+              <div class="flex flex-col items-start">
+                  <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium" [class]="styles.container">
+                    <div class="h-2 w-2 rounded-full" [class]="styles.dot"></div>
+                    <span>{{ record.status }}</span>
+                  </div>
+                   @if (rejectionReason) {
+                     <div class="mt-2 text-xs text-gray-500 italic border-l-2 border-red-300 pl-2">
+                       "{{ rejectionReason }}"
+                     </div>
+                   }
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -87,7 +95,7 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
                   <button (click)="openDeleteModal(record)" class="font-medium text-red-600 hover:text-red-500 transition-all duration-150 hover:underline">Delete</button>
                 } @else {
                    @for(action of availableActions; track action.label) {
-                      <button (click)="openUpdateModal(record, action)" class="font-medium text-indigo-600 hover:text-indigo-500 transition-all duration-150 hover:underline">{{ action.label }}</button>
+                      <button (click)="handleAction(record, action)" class="font-medium text-indigo-600 hover:text-indigo-500 transition-all duration-150 hover:underline">{{ action.label }}</button>
                   }
                   @if (availableActions.length === 0 && record.status !== 'Completed') {
                     <span class="text-gray-400 italic">No actions available</span>
@@ -121,6 +129,69 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
   </app-modal>
 }
 
+<!-- Reject Modal -->
+@if (isRejectModalOpen() && recordToUpdate()) {
+  <app-modal title="Reject Wayleave" (close)="closeRejectModal()">
+    <form (ngSubmit)="handleRejection()" class="space-y-4">
+      <p>Please provide a justification for rejecting wayleave <span class="font-bold">{{ recordToUpdate()!.wayleaveNumber }}</span>.</p>
+      <div>
+        <label for="justification" class="block text-sm font-medium text-gray-700">Justification (Mandatory)</label>
+        <textarea id="justification" name="justification" rows="4"
+          [ngModel]="rejectionJustification()" (ngModelChange)="rejectionJustification.set($event)"
+          required
+          class="mt-1 block w-full shadow-sm sm:text-sm border-gray-600 bg-gray-700 text-white rounded-md focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+      </div>
+      <div class="flex justify-end space-x-4 pt-4">
+        <button type="button" (click)="closeRejectModal()" [disabled]="isUpdatingStatus()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+        <button type="submit" [disabled]="!rejectionJustification().trim() || isUpdatingStatus()" class="flex justify-center items-center w-40 px-4 py-2 bg-red-600 text-white rounded-md shadow-sm hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed">
+          @if(isUpdatingStatus()) { <app-spinner></app-spinner> } @else { <span>Confirm Rejection</span> }
+        </button>
+      </div>
+    </form>
+  </app-modal>
+}
+
+<!-- Resubmit Modal -->
+@if (isResubmitModalOpen() && recordToUpdate()) {
+  @let rejectionReason = getRejectionJustification(recordToUpdate());
+  <app-modal title="Resubmit Wayleave" (close)="closeResubmitModal()">
+    <div class="space-y-4">
+      <p>You are resubmitting wayleave <span class="font-bold">{{ recordToUpdate()!.wayleaveNumber }}</span>.</p>
+      @if (rejectionReason) {
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <p class="text-sm text-yellow-800 font-semibold">Reason for Rejection:</p>
+            <p class="text-sm text-yellow-700 italic mt-1">"{{ rejectionReason }}"</p>
+        </div>
+      }
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Corrected Document (PDF Mandatory)</label>
+        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+          <div class="space-y-1 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" /></svg>
+            <div class="flex text-sm text-gray-600">
+              <label for="resubmit-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                <span>Upload a file</span>
+                <input id="resubmit-upload" name="resubmit-upload" type="file" class="sr-only" (change)="onResubmitFileSelected($event)" accept=".pdf">
+              </label>
+              <p class="pl-1">or drag and drop</p>
+            </div>
+            <p class="text-xs text-gray-500">PDF up to 10MB</p>
+            @if (resubmitAttachmentName()) {
+              <p class="text-sm text-green-600 pt-2 font-semibold">{{ resubmitAttachmentName() }}</p>
+            }
+          </div>
+        </div>
+      </div>
+       <div class="flex justify-end space-x-4 pt-4">
+        <button type="button" (click)="closeResubmitModal()" [disabled]="isUpdatingStatus()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+        <button (click)="handleResubmission()" [disabled]="!resubmitAttachment() || isUpdatingStatus()" class="flex justify-center items-center w-36 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed">
+          @if(isUpdatingStatus()) { <app-spinner></app-spinner> } @else { <span>Confirm & Resubmit</span> }
+        </button>
+      </div>
+    </div>
+  </app-modal>
+}
+
 <!-- Admin Status Update Modal -->
 @if (recordToUpdateAdmin()) {
   <app-modal title="Admin: Change Wayleave Status" (close)="closeAdminUpdateModal()">
@@ -139,6 +210,16 @@ import { EditWayleaveFormComponent } from '../edit-wayleave-form/edit-wayleave-f
                 }
             </select>
         </div>
+        
+        @if (newStatusForAdmin() === 'Rejected by TSS') {
+            <div class="animate-fade-in">
+                <label for="admin-justification" class="block text-sm font-medium text-gray-700">Justification (Mandatory)</label>
+                <textarea id="admin-justification" name="admin-justification" rows="3"
+                [ngModel]="adminJustification()" (ngModelChange)="adminJustification.set($event)"
+                required
+                class="mt-1 block w-full shadow-sm sm:text-sm border-gray-600 bg-gray-700 text-white rounded-md focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+            </div>
+        }
 
         @if (newStatusForAdmin() === 'Sent to Planning (EDD)') {
           <div class="animate-fade-in space-y-4">
@@ -236,7 +317,16 @@ export class WayleaveListComponent {
   isUpdateModalOpen = signal(false);
   isUpdatingStatus = signal(false);
   recordToUpdate = signal<WayleaveRecord | null>(null);
-  actionToPerform = signal<{ label: string, newStatus: WayleaveStatus, actor: UserRole } | null>(null);
+  actionToPerform = signal<{ label: string; newStatus: WayleaveStatus; actor: UserRole; type: 'update' | 'reject' | 'resubmit' } | null>(null);
+  
+  // State for rejection flow
+  isRejectModalOpen = signal(false);
+  rejectionJustification = signal('');
+
+  // State for resubmission flow
+  isResubmitModalOpen = signal(false);
+  resubmitAttachment = signal<File | null>(null);
+  resubmitAttachmentName = signal('');
   
   // State for deletion flow
   recordToDelete = signal<WayleaveRecord | null>(null);
@@ -248,7 +338,8 @@ export class WayleaveListComponent {
   newStatusForAdmin = signal<WayleaveStatus>('Waiting for TSS Action');
   adminApprovedAttachment = signal<File | null>(null);
   adminAttachmentName = signal('');
-  readonly allStatuses: WayleaveStatus[] = ['Waiting for TSS Action', 'Sent to MOW', 'Sent to Planning (EDD)', 'Completed'];
+  adminJustification = signal('');
+  readonly allStatuses: WayleaveStatus[] = ['Waiting for TSS Action', 'Sent to MOW', 'Sent to Planning (EDD)', 'Completed', 'Rejected by TSS'];
 
   recordToEdit = signal<WayleaveRecord | null>(null);
   isEditingRecord = signal(false);
@@ -259,6 +350,7 @@ export class WayleaveListComponent {
     'Sent to MOW': { container: 'bg-blue-100 text-blue-800', dot: 'bg-blue-500' },
     'Sent to Planning (EDD)': { container: 'bg-purple-100 text-purple-800', dot: 'bg-purple-500' },
     'Completed': { container: 'bg-green-100 text-green-800', dot: 'bg-green-500' },
+    'Rejected by TSS': { container: 'bg-red-100 text-red-800', dot: 'bg-red-500' },
   }));
 
   isAdminConfirmDisabled = computed(() => {
@@ -267,32 +359,56 @@ export class WayleaveListComponent {
       if (!record) return true;
       if (this.newStatusForAdmin() === record.status) return true;
       if (this.newStatusForAdmin() === 'Sent to Planning (EDD)' && !this.adminApprovedAttachment()) return true;
+      if (this.newStatusForAdmin() === 'Rejected by TSS' && !this.adminJustification().trim()) return true;
       return false;
   });
 
-  getActionsForRecord(status: WayleaveStatus, user: UserRole | null) {
-    const actions: { label: string, newStatus: WayleaveStatus, actor: UserRole }[] = [];
+  getActionsForRecord(status: WayleaveStatus, user: UserRole | null, record: WayleaveRecord) {
+    const actions: { label: string, newStatus: WayleaveStatus, actor: UserRole, type: 'update' | 'reject' | 'resubmit' }[] = [];
     if (!user || user === 'Admin') return actions;
 
     if (user === 'TSS') {
       if (status === 'Waiting for TSS Action') {
-        actions.push({ label: 'Send to MOW', newStatus: 'Sent to MOW', actor: 'TSS' });
+        actions.push({ label: 'Send to MOW', newStatus: 'Sent to MOW', actor: 'TSS', type: 'update' });
+        actions.push({ label: 'Reject', newStatus: 'Rejected by TSS', actor: 'TSS', type: 'reject' });
       } else if (status === 'Sent to MOW') {
-        actions.push({ label: 'Send to Planning (EDD)', newStatus: 'Sent to Planning (EDD)', actor: 'TSS' });
+        actions.push({ label: 'Send to Planning (EDD)', newStatus: 'Sent to Planning (EDD)', actor: 'TSS', type: 'update' });
       }
     } else if (user === 'EDD' && status === 'Sent to Planning (EDD)') {
-      actions.push({ label: 'Mark as Completed', newStatus: 'Completed', actor: 'EDD' });
+      actions.push({ label: 'Mark as Completed', newStatus: 'Completed', actor: 'EDD', type: 'update' });
+    } else if (user === 'PLANNING' && status === 'Rejected by TSS') {
+      actions.push({ label: 'Resubmit', newStatus: 'Waiting for TSS Action', actor: 'PLANNING', type: 'resubmit'});
     }
     
     return actions;
   }
 
-  // --- Standard User Methods ---
-  openUpdateModal(record: WayleaveRecord, action: { label: string, newStatus: WayleaveStatus, actor: UserRole }) {
+  getRejectionJustification(record: WayleaveRecord | null): string | undefined {
+    if (!record || record.status !== 'Rejected by TSS') {
+        return undefined;
+    }
+    // Find the most recent history entry that matches the current 'Rejected by TSS' status.
+    const rejectionEntry = [...record.history].reverse().find(h => h.status === 'Rejected by TSS' && h.justification);
+    return rejectionEntry?.justification;
+  }
+
+  handleAction(record: WayleaveRecord, action: { label: string, newStatus: WayleaveStatus, actor: UserRole, type: 'update' | 'reject' | 'resubmit' }) {
     this.recordToUpdate.set(record);
     this.actionToPerform.set(action);
-    this.isUpdateModalOpen.set(true);
+    switch(action.type) {
+      case 'update':
+        this.isUpdateModalOpen.set(true);
+        break;
+      case 'reject':
+        this.isRejectModalOpen.set(true);
+        break;
+      case 'resubmit':
+        this.isResubmitModalOpen.set(true);
+        break;
+    }
   }
+
+  // --- Standard Update Methods ---
   closeUpdateModal() {
     if (this.isUpdatingStatus()) return;
     this.isUpdateModalOpen.set(false);
@@ -306,12 +422,75 @@ export class WayleaveListComponent {
 
     this.isUpdatingStatus.set(true);
     try {
-      await this.wayleaveService.updateStatus(record.id, action.newStatus, action.actor, approvedFile ?? undefined);
+      await this.wayleaveService.updateStatus(record.id, action.newStatus, action.actor, { approvedAttachmentFile: approvedFile ?? undefined });
     } catch (error: any) {
       alert(`Failed to update status: ${error.message}`);
     } finally {
       this.isUpdatingStatus.set(false);
       this.closeUpdateModal();
+    }
+  }
+
+  // --- Rejection Methods ---
+  closeRejectModal() {
+    if(this.isUpdatingStatus()) return;
+    this.isRejectModalOpen.set(false);
+    this.rejectionJustification.set('');
+    this.recordToUpdate.set(null);
+  }
+  async handleRejection() {
+    const record = this.recordToUpdate();
+    if (!record || !this.rejectionJustification().trim()) return;
+
+    this.isUpdatingStatus.set(true);
+    try {
+      await this.wayleaveService.updateStatus(record.id, 'Rejected by TSS', 'TSS', { justification: this.rejectionJustification().trim() });
+    } catch(e: any) {
+      alert(`Error rejecting record: ${e.message}`);
+    } finally {
+      this.isUpdatingStatus.set(false);
+      this.closeRejectModal();
+    }
+  }
+
+  // --- Resubmission Methods ---
+  closeResubmitModal() {
+    if(this.isUpdatingStatus()) return;
+    this.isResubmitModalOpen.set(false);
+    this.resubmitAttachment.set(null);
+    this.resubmitAttachmentName.set('');
+    this.recordToUpdate.set(null);
+  }
+
+  onResubmitFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      if (file.type === 'application/pdf') {
+        this.resubmitAttachment.set(file);
+        this.resubmitAttachmentName.set(file.name);
+      } else {
+        alert('Only PDF files are allowed.');
+        this.resubmitAttachment.set(null);
+        this.resubmitAttachmentName.set('');
+        input.value = '';
+      }
+    }
+  }
+
+  async handleResubmission() {
+    const record = this.recordToUpdate();
+    const attachment = this.resubmitAttachment();
+    if (!record || !attachment) return;
+
+    this.isUpdatingStatus.set(true);
+    try {
+      await this.wayleaveService.resubmitRecord(record.id, attachment);
+    } catch(e: any) {
+      alert(`Error resubmitting record: ${e.message}`);
+    } finally {
+      this.isUpdatingStatus.set(false);
+      this.closeResubmitModal();
     }
   }
   
@@ -320,6 +499,7 @@ export class WayleaveListComponent {
     this.newStatusForAdmin.set(record.status);
     this.adminApprovedAttachment.set(null);
     this.adminAttachmentName.set('');
+    this.adminJustification.set('');
     this.recordToUpdateAdmin.set(record);
   }
   closeAdminUpdateModal() {
@@ -327,6 +507,7 @@ export class WayleaveListComponent {
     this.recordToUpdateAdmin.set(null);
     this.adminApprovedAttachment.set(null);
     this.adminAttachmentName.set('');
+    this.adminJustification.set('');
   }
 
   onAdminStatusChange(newStatus: WayleaveStatus) {
@@ -334,6 +515,9 @@ export class WayleaveListComponent {
     if (newStatus !== 'Sent to Planning (EDD)') {
         this.adminApprovedAttachment.set(null);
         this.adminAttachmentName.set('');
+    }
+    if (newStatus !== 'Rejected by TSS') {
+        this.adminJustification.set('');
     }
   }
 
@@ -359,7 +543,10 @@ export class WayleaveListComponent {
 
     this.isUpdatingStatusAdmin.set(true);
     try {
-        await this.wayleaveService.updateStatus(record.id, this.newStatusForAdmin(), 'Admin', this.adminApprovedAttachment() ?? undefined);
+        await this.wayleaveService.updateStatus(record.id, this.newStatusForAdmin(), 'Admin', {
+          approvedAttachmentFile: this.adminApprovedAttachment() ?? undefined,
+          justification: this.adminJustification().trim() ? this.adminJustification().trim() : undefined,
+        });
     } catch(e: any) {
         alert(`Error: ${e.message}`);
     } finally {

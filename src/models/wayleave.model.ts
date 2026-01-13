@@ -3,12 +3,13 @@ export type UserRole = 'PLANNING' | 'TSS' | 'EDD' | 'Admin' | 'Unassigned';
 
 export const ALL_USER_ROLES: UserRole[] = ['PLANNING', 'TSS', 'EDD', 'Admin', 'Unassigned'];
 
-export type WayleaveStatus = 'Waiting for TSS Action' | 'Sent to MOW' | 'Sent to Planning (EDD)' | 'Completed';
+export type WayleaveStatus = 'Waiting for TSS Action' | 'Sent to MOW' | 'Sent to Planning (EDD)' | 'Completed' | 'Rejected by TSS';
 
 export interface HistoryEntry {
   status: WayleaveStatus;
   timestamp: Date;
   actor: UserRole;
+  justification?: string;
 }
 
 export interface AttachmentInfo {

@@ -1,5 +1,5 @@
 
-import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WayleaveRecord } from '../../models/wayleave.model';
@@ -56,10 +56,11 @@ export class EditWayleaveFormComponent {
   editableWayleaveNumber = signal('');
 
   constructor() {
-    const record = this.record();
-    if (record) {
-      this.editableWayleaveNumber.set(record.wayleaveNumber);
-    }
+    effect(() => {
+        // This effect runs when the `record` input is set or changes,
+        // correctly initializing the form field.
+        this.editableWayleaveNumber.set(this.record().wayleaveNumber);
+    });
   }
 
   submitForm(): void {

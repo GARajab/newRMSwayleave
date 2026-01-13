@@ -173,9 +173,10 @@ export class AppComponent implements OnInit {
     return this.wayleaveService.records().filter(record => {
       if (user === 'TSS' && record.status === 'Waiting for TSS Action') return true;
       if (user === 'EDD' && record.status === 'Sent to Planning (EDD)') return true;
-      // Admins see all notifications
+      if (user === 'PLANNING' && record.status === 'Rejected by TSS') return true;
+      // Admins see all actionable notifications
       if (user === 'Admin') {
-         if (record.status === 'Waiting for TSS Action' || record.status === 'Sent to Planning (EDD)') return true;
+         if (['Waiting for TSS Action', 'Sent to Planning (EDD)', 'Rejected by TSS'].includes(record.status)) return true;
       }
       return false;
     });
@@ -273,11 +274,11 @@ export class AppComponent implements OnInit {
     this.isCreatingWayleave.set(true);
     try {
       await this.wayleaveService.addRecord(record.wayleaveNumber, record.attachment);
+      this.isNewWayleaveModalOpen.set(false);
     } catch (error: any) {
         alert(`Error creating record: ${error.message}`);
     } finally {
       this.isCreatingWayleave.set(false);
-      this.isNewWayleaveModalOpen.set(false);
     }
   }
 
@@ -346,6 +347,10 @@ CREATE TABLE IF NOT EXISTS public.wayleave_records (
   approved_attachment_size BIGINT
 );
 
+-- Add unique constraint for wayleave_number to prevent duplicates.
+-- This is idempotent and will not fail if the constraint already exists.
+ALTER TABLE public.wayleave_records ADD CONSTRAINT wayleave_records_wayleave_number_key UNIQUE (wayleave_number);
+
 -- 3. Create storage bucket
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('wayleave-attachments', 'wayleave-attachments', FALSE)
@@ -408,32 +413,48 @@ CREATE POLICY "Allow authenticated read access" ON public.wayleave_records FOR S
 DROP POLICY IF EXISTS "Allow PLANNING and Admin to insert" ON public.wayleave_records;
 CREATE POLICY "Allow PLANNING and Admin to insert" ON public.wayleave_records FOR INSERT TO authenticated WITH CHECK ( (get_current_user_role() IN ('PLANNING', 'Admin')) );
 DROP POLICY IF EXISTS "Allow role-based updates" ON public.wayleave_records;
-CREATE POLICY "Allow role-based updates" ON public.wayleave_records FOR UPDATE TO authenticated USING ( (get_current_user_role() = 'TSS' AND status IN ('Waiting for TSS Action', 'Sent to MOW')) OR (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR (get_current_user_role() = 'Admin') ) WITH CHECK ( (get_current_user_role() = 'TSS' AND status IN ('Waiting for TSS Action', 'Sent to MOW')) OR (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR (get_current_user_role() = 'Admin') );
-DROP POLICY IF EXISTS "Allow Admin to delete" ON public.wayleave_records;
-CREATE POLICY "Allow Admin to delete" ON public.wayleave_records FOR DELETE TO authenticated USING ( (get_current_user_role() = 'Admin') );
-DROP POLICY IF EXISTS "Allow authenticated select access on attachments" ON storage.objects;
-CREATE POLICY "Allow authenticated select access on attachments" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'wayleave-attachments');
-DROP POLICY IF EXISTS "Allow PLANNING and Admin to insert attachments" ON storage.objects;
-CREATE POLICY "Allow PLANNING and Admin to insert attachments" ON storage.objects FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'wayleave-attachments' AND (get_current_user_role() IN ('PLANNING', 'Admin')) );
+CREATE POLICY "Allow role-based updates" ON public.wayleave_records FOR UPDATE TO authenticated USING (TRUE) WITH CHECK ( (get_current_user_role() = 'TSS' AND status IN ('Waiting for TSS Action', 'Sent to MOW')) OR (get_current_user_role() = 'EDD' AND status = 'Sent to Planning (EDD)') OR (get_current_user_role() = 'PLANNING' AND status = 'Rejected by TSS') OR (get_current_user_role() = 'Admin') );
+DROP POLICY IF EXISTS "Allow admin full access" ON public.wayleave_records;
+CREATE POLICY "Allow admin full access" ON public.wayleave_records FOR ALL TO authenticated USING (get_current_user_role() = 'Admin') WITH CHECK (get_current_user_role() = 'Admin');
 
--- 7. Add a setup verification function for the client application
+-- 7. Storage Policies
+DROP POLICY IF EXISTS "Allow inserts for authenticated users" ON storage.objects;
+CREATE POLICY "Allow inserts for authenticated users" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'wayleave-attachments');
+DROP POLICY IF EXISTS "Allow authenticated users to read their files" ON storage.objects;
+CREATE POLICY "Allow authenticated users to read their files" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'wayleave-attachments');
+DROP POLICY IF EXISTS "Allow admin to delete files" ON storage.objects;
+CREATE POLICY "Allow admin to delete files" ON storage.objects FOR DELETE to authenticated USING (get_current_user_role() = 'Admin' AND bucket_id = 'wayleave-attachments');
+
+-- 8. RPC function to check setup
 CREATE OR REPLACE FUNCTION check_setup_status()
-RETURNS jsonb AS $$
+RETURNS json AS $$
 DECLARE
   missing_items text[] := ARRAY[]::text[];
+  is_table_users boolean;
+  is_table_records boolean;
+  is_bucket boolean;
+  is_function_get_role boolean;
+  is_trigger_handle_user boolean;
 BEGIN
-  -- Check for tables
-  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wayleave_records') THEN
-    missing_items := array_append(missing_items, 'table: wayleave_records');
-  END IF;
-  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
-    missing_items := array_append(missing_items, 'table: users');
-  END IF;
+  SELECT to_regclass('public.users') IS NOT NULL INTO is_table_users;
+  IF NOT is_table_users THEN missing_items := array_append(missing_items, 'table: users'); END IF;
+  
+  SELECT to_regclass('public.wayleave_records') IS NOT NULL INTO is_table_records;
+  IF NOT is_table_records THEN missing_items := array_append(missing_items, 'table: wayleave_records'); END IF;
+
+  SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'wayleave-attachments') INTO is_bucket;
+  IF NOT is_bucket THEN missing_items := array_append(missing_items, 'bucket: wayleave-attachments'); END IF;
+
+  SELECT to_regprocedure('public.get_current_user_role()') IS NOT NULL INTO is_function_get_role;
+  IF NOT is_function_get_role THEN missing_items := array_append(missing_items, 'function: get_current_user_role'); END IF;
+
+  SELECT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created') INTO is_trigger_handle_user;
+  IF NOT is_trigger_handle_user THEN missing_items := array_append(missing_items, 'trigger: on_auth_user_created'); END IF;
 
   IF array_length(missing_items, 1) > 0 THEN
-    RETURN jsonb_build_object('is_complete', false, 'missing', missing_items);
+    RETURN json_build_object('is_complete', false, 'missing', missing_items);
   ELSE
-    RETURN jsonb_build_object('is_complete', true);
+    RETURN json_build_object('is_complete', true);
   END IF;
 END;
 $$ LANGUAGE plpgsql;

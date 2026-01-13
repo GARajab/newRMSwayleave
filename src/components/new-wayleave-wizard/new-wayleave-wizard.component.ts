@@ -1,9 +1,10 @@
 
-import { Component, ChangeDetectionStrategy, output, signal, input, computed, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, signal, input, computed, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WayleaveRecord } from '../../models/wayleave.model';
 import { SpinnerComponent } from '../spinner/spinner.component';
+import { WayleaveService } from '../../services/wayleave.service';
 
 @Component({
   selector: 'app-new-wayleave-wizard',
@@ -44,6 +45,26 @@ import { SpinnerComponent } from '../spinner/spinner.component';
         </div>
       }
 
+      <!-- TSS Confirmation Overlay -->
+      @if (showTssConfirmation()) {
+        <div class="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-20 animate-fade-in">
+            <div class="bg-white p-8 rounded-lg shadow-2xl ring-1 ring-gray-900/10 text-center w-full max-w-md animate-scale-in">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Final Confirmation</h3>
+                <p class="text-gray-600 mb-6">Please confirm that no liaise is required before sending to TSS.</p>
+                <div class="flex justify-center items-center space-x-4">
+                    <button (click)="handleTssCancel()" [disabled]="isLoading()" class="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50">Cancel</button>
+                    <button (click)="handleTssConfirm()" [disabled]="isLoading()" class="flex justify-center items-center w-44 px-6 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed">
+                      @if (isLoading()) {
+                        <app-spinner></app-spinner>
+                      } @else {
+                        <span>Confirm & Send</span>
+                      }
+                    </button>
+                </div>
+            </div>
+        </div>
+      }
+
       <!-- Progress Bar -->
       <div>
         <div class="flex justify-between mb-1">
@@ -66,11 +87,16 @@ import { SpinnerComponent } from '../spinner/spinner.component';
                 <label for="wayleaveNumber" class="block text-sm font-medium text-gray-700">Wayleave Number</label>
                 <div class="mt-1">
                   <input type="text" id="wayleaveNumber" name="wayleaveNumber" 
-                         [ngModel]="wayleaveNumber()" (ngModelChange)="wayleaveNumber.set($event)" 
+                         [ngModel]="wayleaveNumber()" (ngModelChange)="onWayleaveNumberChange($event)" 
                          required 
                          class="block w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                          placeholder="e.g., WL-2024-001">
                 </div>
+                @if (duplicateError()) {
+                  <p class="mt-2 text-sm text-red-600" id="wayleave-number-error">
+                    {{ duplicateError() }}
+                  </p>
+                }
               </div>
             </div>
           }
@@ -126,8 +152,12 @@ import { SpinnerComponent } from '../spinner/spinner.component';
         }
 
         @if (currentStep() < 2) {
-          <button type="button" (click)="nextStep()" [disabled]="!isStepValid()" class="flex justify-center items-center w-28 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed">
-            Next
+          <button type="button" (click)="nextStep()" [disabled]="!isStepValid() || isCheckingDuplicates()" class="flex justify-center items-center w-28 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed">
+            @if(isCheckingDuplicates()) {
+                <app-spinner></app-spinner>
+            } @else {
+                <span>Next</span>
+            }
           </button>
         } @else {
           <button type="button" (click)="submitForm()" [disabled]="!isStepValid() || isLoading()" class="flex justify-center items-center w-28 px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed">
@@ -144,6 +174,7 @@ import { SpinnerComponent } from '../spinner/spinner.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NewWayleaveWizardComponent {
+  wayleaveService = inject(WayleaveService);
   isLoading = input<boolean>(false);
   formSubmitted = output<Omit<WayleaveRecord, 'id' | 'status' | 'history' | 'attachment'> & { attachment: File }>();
   formCancelled = output<void>();
@@ -154,8 +185,13 @@ export class NewWayleaveWizardComponent {
   attachmentName = signal('');
   
   showRpddConfirmation = signal(false);
+  showTssConfirmation = signal(false);
   rpddError = signal<string | null>(null);
   isDragging = signal(false);
+  
+  duplicateError = signal<string | null>(null);
+  isCheckingDuplicates = signal(false);
+
 
   // New signal for the animated width of the progress bar
   progressWidth = signal(0);
@@ -176,7 +212,7 @@ export class NewWayleaveWizardComponent {
 
   isStepValid = computed(() => {
     switch(this.currentStep()) {
-      case 1: return this.wayleaveNumber().trim().length > 0;
+      case 1: return this.wayleaveNumber().trim().length > 0 && !this.duplicateError();
       case 2: return !!this.attachment();
       default: return false;
     }
@@ -203,6 +239,14 @@ export class NewWayleaveWizardComponent {
       alert('Only PDF files are allowed.');
       this.attachment.set(null);
       this.attachmentName.set('');
+    }
+  }
+  
+  onWayleaveNumberChange(value: string): void {
+    this.wayleaveNumber.set(value);
+    // Clear the error message as the user types
+    if (this.duplicateError()) {
+      this.duplicateError.set(null);
     }
   }
 
@@ -236,14 +280,27 @@ export class NewWayleaveWizardComponent {
     }
   }
   
-  nextStep(): void {
-    if (this.isStepValid()) {
-      if (this.currentStep() === 1) {
-        this.rpddError.set(null);
-        this.showRpddConfirmation.set(true);
-      } else if (this.currentStep() < 2) {
-        this.currentStep.update(step => step + 1);
+  async nextStep(): Promise<void> {
+    if (!this.isStepValid()) return;
+    
+    if (this.currentStep() === 1) {
+      this.isCheckingDuplicates.set(true);
+      this.duplicateError.set(null);
+      try {
+        const exists = await this.wayleaveService.checkWayleaveNumberExists(this.wayleaveNumber().trim());
+        if (exists) {
+          this.duplicateError.set(`Wayleave number "${this.wayleaveNumber()}" already exists.`);
+        } else {
+          this.rpddError.set(null);
+          this.showRpddConfirmation.set(true);
+        }
+      } catch (error) {
+        this.duplicateError.set('Error checking wayleave number. Please try again.');
+      } finally {
+        this.isCheckingDuplicates.set(false);
       }
+    } else if (this.currentStep() < 2) {
+      this.currentStep.update(step => step + 1);
     }
   }
 
@@ -255,14 +312,7 @@ export class NewWayleaveWizardComponent {
 
   submitForm(): void {
     if (this.isLoading() || !this.isStepValid()) return;
-    
-    if(this.attachment()) {
-        const data = {
-            wayleaveNumber: this.wayleaveNumber(),
-            attachment: this.attachment()!,
-        };
-        this.formSubmitted.emit(data);
-    }
+    this.showTssConfirmation.set(true);
   }
 
   cancelForm(): void {
@@ -281,6 +331,22 @@ export class NewWayleaveWizardComponent {
   }
 
   handleRpddCancel(): void {
-    this.rpddError.set('RPDD approval is required. You must select "Yes" to continue.');
+    this.showRpddConfirmation.set(false);
+  }
+
+  handleTssConfirm(): void {
+    if (this.isLoading()) return;
+    
+    if(this.attachment()) {
+        const data = {
+            wayleaveNumber: this.wayleaveNumber(),
+            attachment: this.attachment()!,
+        };
+        this.formSubmitted.emit(data);
+    }
+  }
+
+  handleTssCancel(): void {
+    this.showTssConfirmation.set(false);
   }
 }

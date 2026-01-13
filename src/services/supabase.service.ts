@@ -30,7 +30,7 @@ export class SupabaseService {
   constructor() {
     this.supabase = createClient(this.supabaseUrl, this.supabaseKey, {
       auth: {
-        // multiTab: false,
+       
       }
     });
   }
@@ -57,16 +57,16 @@ export class SupabaseService {
   }
 
   async getSession(): Promise<Session | null> {
-    const { data, error } = await this.supabase.auth.getSession();
-    if (error) throw error;
-    return data.session;
+      const { data, error } = await this.supabase.auth.getSession();
+      if (error) throw error;
+      return data.session;
   }
 
   onAuthStateChange(callback: (event: AuthChangeEvent, session: Session | null) => void) {
-    const { data } = this.supabase.auth.onAuthStateChange(callback);
-    return data.subscription;
+      const { data } = this.supabase.auth.onAuthStateChange(callback);
+      return data.subscription;
   }
-
+  
   // --- Admin Auth Methods ---
   async deleteUser(userId: string): Promise<void> {
     // This performs a "soft delete" from the app's perspective by removing the profile.
@@ -110,7 +110,7 @@ export class SupabaseService {
     }
     return data as UserProfile[];
   }
-
+  
   async updateUserProfile(userId: string, data: Partial<{ role: UserRole; status: string }>): Promise<UserProfile> {
     const { data: updatedData, error } = await this.supabase
       .from('users')
@@ -125,20 +125,20 @@ export class SupabaseService {
     }
     return updatedData as UserProfile;
   }
-
+  
   // --- Setup Verification Method ---
   async checkSetupStatus(): Promise<{ is_complete: boolean; missing?: string[] }> {
     const { data, error } = await this.supabase.rpc('check_setup_status');
     if (error) {
-      const errorMsg = error.message?.toLowerCase();
-      // If the RPC function itself doesn't exist, it's a clear sign of an incomplete setup.
-      // We catch this specific error and return a structured response instead of throwing.
-      if (errorMsg && (errorMsg.includes('function public.check_setup_status() does not exist') || errorMsg.includes('could not find the function'))) {
-        return { is_complete: false, missing: ['function: check_setup_status'] };
-      }
-      // For any other unexpected RPC errors, we log and re-throw.
-      console.error('Error calling check_setup_status RPC:', error.message, error);
-      throw error;
+        const errorMsg = error.message?.toLowerCase();
+        // If the RPC function itself doesn't exist, it's a clear sign of an incomplete setup.
+        // We catch this specific error and return a structured response instead of throwing.
+        if (errorMsg && (errorMsg.includes('function public.check_setup_status() does not exist') || errorMsg.includes('could not find the function'))) {
+            return { is_complete: false, missing: ['function: check_setup_status'] };
+        }
+        // For any other unexpected RPC errors, we log and re-throw.
+        console.error('Error calling check_setup_status RPC:', error.message, error);
+        throw error;
     }
     return data;
   }
@@ -188,31 +188,31 @@ export class SupabaseService {
     if (this.channel) {
       this.unsubscribeFromChanges();
     }
-
+    
     this.channel = this.supabase.channel('wayleave_records');
 
     this.channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'wayleave_records' },
-      (payload) => {
-        console.log('Real-time change received:', payload);
-        switch (payload.eventType) {
-          case 'INSERT':
-            addRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
-            break;
-          case 'UPDATE':
-            updateRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
-            break;
-          case 'DELETE':
-            // The 'id' is in the 'old' part of the payload for deletes
-            deleteRecord((payload.old as { id: number }).id);
-            break;
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wayleave_records' },
+        (payload) => {
+          console.log('Real-time change received:', payload);
+          switch (payload.eventType) {
+            case 'INSERT':
+              addRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
+              break;
+            case 'UPDATE':
+              updateRecord(this.mapDbRecordToWayleaveRecord(payload.new as DbRecord));
+              break;
+            case 'DELETE':
+              // The 'id' is in the 'old' part of the payload for deletes
+              deleteRecord((payload.old as { id: number }).id);
+              break;
+          }
         }
-      }
-    )
+      )
       .subscribe((status, err) => {
         if (err) {
-          console.error('Real-time subscription error:', err.message, err);
+            console.error('Real-time subscription error:', err.message, err);
         }
       });
   }
@@ -227,7 +227,7 @@ export class SupabaseService {
   private async uploadAttachment(file: File, wayleaveNumber: string): Promise<{ path: string }> {
     const fileExt = file.name.split('.').pop();
     const filePath = `${wayleaveNumber}/${new Date().getTime()}.${fileExt}`;
-
+    
     const { error } = await this.supabase.storage
       .from(this.bucketName)
       .upload(filePath, file);
@@ -258,12 +258,16 @@ export class SupabaseService {
     });
 
     if (error) {
+      // Postgres error code '23505' is for unique violation
+      if (error.code === '23505') {
+        throw new Error(`A record with Wayleave Number "${wayleaveNumber}" already exists.`);
+      }
       console.error('Error adding record:', error.message, error);
       throw error;
     }
   }
 
-  async updateStatus(recordId: number, newStatus: WayleaveStatus, actor: UserRole, approvedAttachmentFile?: File): Promise<void> {
+  async updateStatus(recordId: number, newStatus: WayleaveStatus, actor: UserRole, details: { approvedAttachmentFile?: File; justification?: string }): Promise<void> {
     const { data: currentRecord, error: fetchError } = await this.supabase
       .from('wayleave_records')
       .select('history, wayleave_number')
@@ -276,17 +280,20 @@ export class SupabaseService {
     }
 
     const newHistoryEntry: HistoryEntry = { status: newStatus, timestamp: new Date(), actor };
+    if (details.justification) {
+      newHistoryEntry.justification = details.justification;
+    }
     const updatedHistory = [...currentRecord.history, newHistoryEntry];
-
+    
     const updateData: Partial<DbRecord> = {
       status: newStatus,
       history: updatedHistory,
     };
 
-    if (approvedAttachmentFile) {
-      const { path } = await this.uploadAttachment(approvedAttachmentFile, currentRecord.wayleave_number);
-      updateData.approved_attachment_name = approvedAttachmentFile.name;
-      updateData.approved_attachment_size = approvedAttachmentFile.size;
+    if (details.approvedAttachmentFile) {
+      const { path } = await this.uploadAttachment(details.approvedAttachmentFile, currentRecord.wayleave_number);
+      updateData.approved_attachment_name = details.approvedAttachmentFile.name;
+      updateData.approved_attachment_size = details.approvedAttachmentFile.size;
       updateData.approved_attachment_path = path;
     }
 
@@ -308,6 +315,9 @@ export class SupabaseService {
       .eq('id', recordId);
 
     if (error) {
+       if (error.code === '23505') {
+        throw new Error(`A record with Wayleave Number "${wayleaveNumber}" already exists.`);
+      }
       console.error('Error updating record details:', error.message, error);
       throw error;
     }
@@ -316,47 +326,47 @@ export class SupabaseService {
   async deleteRecord(recordId: number): Promise<void> {
     // First, get the record to find the attachment paths
     const { data: record, error: fetchError } = await this.supabase
-      .from('wayleave_records')
-      .select('attachment_path, approved_attachment_path')
-      .eq('id', recordId)
-      .single();
+        .from('wayleave_records')
+        .select('attachment_path, approved_attachment_path')
+        .eq('id', recordId)
+        .single();
 
     if (fetchError) {
-      console.error(`Error fetching record ${recordId} for deletion:`, fetchError.message);
-      throw fetchError;
+        console.error(`Error fetching record ${recordId} for deletion:`, fetchError.message);
+        throw fetchError;
     }
 
     // Collect file paths to delete
     const filesToDelete: string[] = [];
     if (record.attachment_path) {
-      filesToDelete.push(record.attachment_path);
+        filesToDelete.push(record.attachment_path);
     }
     if (record.approved_attachment_path) {
-      filesToDelete.push(record.approved_attachment_path);
+        filesToDelete.push(record.approved_attachment_path);
     }
 
     // Delete files from storage if they exist
     if (filesToDelete.length > 0) {
-      const { error: storageError } = await this.supabase.storage
-        .from(this.bucketName)
-        .remove(filesToDelete);
+        const { error: storageError } = await this.supabase.storage
+            .from(this.bucketName)
+            .remove(filesToDelete);
 
-      if (storageError) {
-        // Log the error but proceed to delete the DB record anyway,
-        // as orphaned files are less critical than a failed deletion.
-        console.error(`Could not delete attachments for record ${recordId}:`, storageError.message);
-      }
+        if (storageError) {
+            // Log the error but proceed to delete the DB record anyway,
+            // as orphaned files are less critical than a failed deletion.
+            console.error(`Could not delete attachments for record ${recordId}:`, storageError.message);
+        }
     }
 
     // Finally, delete the record from the database
     const { error: deleteError } = await this.supabase
-      .from('wayleave_records')
-      .delete()
-      .eq('id', recordId);
-
+        .from('wayleave_records')
+        .delete()
+        .eq('id', recordId);
+    
     if (deleteError) {
-      console.error(`Error deleting record ${recordId}:`, deleteError.message);
-      throw deleteError;
+        console.error(`Error deleting record ${recordId}:`, deleteError.message);
+        throw deleteError;
     }
   }
 
@@ -370,5 +380,64 @@ export class SupabaseService {
       throw error;
     }
     return data.signedUrl;
+  }
+
+  async checkWayleaveNumberExists(wayleaveNumber: string): Promise<boolean> {
+    const { data, error, count } = await this.supabase
+      .from('wayleave_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('wayleave_number', wayleaveNumber);
+
+    if (error) {
+      console.error('Error checking for existing wayleave number:', error);
+      // To be safe, assume it exists to prevent accidental duplicates on error
+      return true;
+    }
+    return (count ?? 0) > 0;
+  }
+
+  async resubmitRecord(recordId: number, newAttachment: File, actor: UserRole): Promise<void> {
+    const { data: currentRecord, error: fetchError } = await this.supabase
+      .from('wayleave_records')
+      .select('history, wayleave_number')
+      .eq('id', recordId)
+      .single();
+    
+    if (fetchError || !currentRecord) {
+      console.error('Error fetching record to resubmit:', fetchError?.message, fetchError);
+      throw fetchError || new Error('Record not found for resubmission');
+    }
+
+    // Upload new attachment
+    const { path } = await this.uploadAttachment(newAttachment, currentRecord.wayleave_number);
+
+    // Create new history entry
+    const newHistoryEntry: HistoryEntry = {
+      status: 'Waiting for TSS Action',
+      timestamp: new Date(),
+      actor,
+      justification: 'Resubmitted by applicant'
+    };
+    const updatedHistory = [...currentRecord.history, newHistoryEntry];
+    
+    // Prepare update payload
+    const updateData = {
+      status: 'Waiting for TSS Action',
+      history: updatedHistory,
+      attachment_name: newAttachment.name,
+      attachment_size: newAttachment.size,
+      attachment_path: path
+    };
+
+    // Update the record
+    const { error: updateError } = await this.supabase
+      .from('wayleave_records')
+      .update(updateData)
+      .eq('id', recordId);
+    
+    if (updateError) {
+      console.error('Error resubmitting record:', updateError);
+      throw updateError;
+    }
   }
 }
